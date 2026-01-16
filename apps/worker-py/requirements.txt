@@ -1,0 +1,16 @@
+# FastAPI y servidor
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# Descarga de videos
+yt-dlp>=2024.1.0
+
+# Transcripción con Whisper
+faster-whisper>=0.10.0
+
+# Instagram (futuro)
+instaloader>=4.10
+
+# Utilidades
+python-multipart>=0.0.6

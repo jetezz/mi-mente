@@ -1,0 +1,111 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { StatusIndicator } from '../components/StatusIndicator';
+import { ChatInterface } from '../components/ChatInterface';
+---
+
+<Layout title="Chat con tu Cerebro - Hybrid Brain 🧠" description="Pregunta sobre tus notas y recibe respuestas basadas en tu conocimiento">
+  <Header showDashboardLink={true} />
+  
+  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto">
+      <!-- Page Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-display font-bold text-dark-100 mb-2">
+          🧠 Chat con tu Cerebro
+        </h1>
+        <p class="text-dark-400">
+          Pregunta lo que quieras sobre el contenido que has procesado y guardado.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Main content: Chat -->
+        <div class="lg:col-span-3">
+          <div class="card overflow-hidden">
+            <ChatInterface client:load />
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <StatusIndicator client:load />
+          
+          <!-- How it works -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              🎯 Cómo funciona
+            </h3>
+            <ul class="space-y-3 text-sm text-dark-400">
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">1.</span>
+                <span>Selecciona una categoría (opcional)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">2.</span>
+                <span>Escribe tu pregunta</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">3.</span>
+                <span>La IA busca en tus notas de Notion</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">4.</span>
+                <span>Recibe una respuesta con fuentes citadas</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Pro tips -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              💡 Pro Tips
+            </h3>
+            <ul class="space-y-3 text-sm text-dark-400">
+              <li class="flex items-start gap-2">
+                <span class="text-accent-cyan">•</span>
+                <span>Sé específico en tus preguntas para mejores respuestas</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-accent-cyan">•</span>
+                <span>Usa categorías para limitar el contexto de búsqueda</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-accent-cyan">•</span>
+                <span>Las subcategorías también se incluyen automáticamente</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-accent-cyan">•</span>
+                <span>Haz click en las fuentes para ver el contenido original</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              ⚡ Acciones rápidas
+            </h3>
+            <div class="flex flex-col gap-2">
+              <a 
+                href="/dashboard" 
+                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm"
+              >
+                <span>➕</span>
+                Procesar nuevo contenido
+              </a>
+              <button 
+                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm text-left"
+                onclick="window.open('https://notion.so', '_blank')"
+              >
+                <span>📝</span>
+                Abrir Notion
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>

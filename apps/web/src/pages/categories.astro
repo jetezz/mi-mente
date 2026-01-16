@@ -1,0 +1,25 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { CategoryManager } from '../components/CategoryManager';
+---
+
+<Layout title="Categorías - Hybrid Brain 🧠" description="Gestiona tus categorías de conocimiento">
+  <Header showDashboardLink={true} />
+  
+  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto">
+      <!-- Page Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-display font-bold text-dark-100 mb-2">
+          📂 Categorías
+        </h1>
+        <p class="text-dark-400">
+          Organiza tu conocimiento en categorías jerárquicas.
+        </p>
+      </div>
+
+      <CategoryManager client:load />
+    </div>
+  </main>
+</Layout>

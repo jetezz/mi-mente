@@ -1,0 +1,148 @@
+import { useState, useRef, useEffect } from 'react';
+
+interface Category {
+  id: string;
+  name: string;
+  parent_id: string | null;
+}
+
+interface CategorySelectorProps {
+  categories: Category[];
+  selected: Category | null;
+  onSelect: (category: Category | null) => void;
+}
+
+export function CategorySelector({ categories, selected, onSelect }: CategorySelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Organizar categorías en árbol
+  const rootCategories = categories.filter(c => !c.parent_id);
+  const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-700 border border-dark-600 hover:border-dark-500 transition-colors"
+      >
+        <svg className="w-4 h-4 text-dark-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+        <span className={selected ? 'text-dark-100' : 'text-dark-400'}>
+          {selected ? selected.name : 'Todas las categorías'}
+        </span>
+        <svg
+          className={`w-4 h-4 text-dark-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Dropdown */}
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-64 py-2 rounded-xl bg-dark-700 border border-dark-600 shadow-xl z-50 max-h-80 overflow-y-auto">
+          {/* Opción "Todas" */}
+          <button
+            onClick={() => {
+              onSelect(null);
+              setIsOpen(false);
+            }}
+            className={`w-full px-4 py-2 text-left hover:bg-dark-600 transition-colors flex items-center gap-2 ${!selected ? 'bg-primary-500/20 text-primary-400' : 'text-dark-200'
+              }`}
+          >
+            <span className="text-lg">🌐</span>
+            Todas las categorías
+          </button>
+
+          <div className="border-t border-dark-600 my-2" />
+
+          {/* Categorías organizadas */}
+          {rootCategories.length === 0 ? (
+            <div className="px-4 py-3 text-dark-500 text-sm text-center">
+              No hay categorías configuradas
+            </div>
+          ) : (
+            rootCategories.map(category => (
+              <CategoryItem
+                key={category.id}
+                category={category}
+                children={getChildren(category.id)}
+                getChildren={getChildren}
+                selected={selected}
+                onSelect={(cat) => {
+                  onSelect(cat);
+                  setIsOpen(false);
+                }}
+                level={0}
+              />
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Item recursivo para mostrar jerarquía
+interface CategoryItemProps {
+  category: Category;
+  children: Category[];
+  getChildren: (parentId: string) => Category[];
+  selected: Category | null;
+  onSelect: (category: Category) => void;
+  level: number;
+}
+
+function CategoryItem({ category, children, getChildren, selected, onSelect, level }: CategoryItemProps) {
+  const isSelected = selected?.id === category.id;
+  const hasChildren = children.length > 0;
+
+  return (
+    <div>
+      <button
+        onClick={() => onSelect(category)}
+        className={`w-full px-4 py-2 text-left hover:bg-dark-600 transition-colors flex items-center gap-2 ${isSelected ? 'bg-primary-500/20 text-primary-400' : 'text-dark-200'
+          }`}
+        style={{ paddingLeft: `${16 + level * 16}px` }}
+      >
+        <span className="text-lg">
+          {hasChildren ? '📂' : '📄'}
+        </span>
+        <span className="truncate">{category.name}</span>
+        {hasChildren && (
+          <span className="ml-auto text-xs text-dark-500">
+            +{children.length}
+          </span>
+        )}
+      </button>
+
+      {/* Hijos recursivos */}
+      {hasChildren && children.map(child => (
+        <CategoryItem
+          key={child.id}
+          category={child}
+          children={getChildren(child.id)}
+          getChildren={getChildren}
+          selected={selected}
+          onSelect={onSelect}
+          level={level + 1}
+        />
+      ))}
+    </div>
+  );
+}

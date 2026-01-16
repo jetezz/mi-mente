@@ -1,0 +1,126 @@
+# ----------------------------------------------------------------------
+# GLOBAL / OS / EDITORS
+# ----------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+
+# Editors (VSCode, JetBrains, etc)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs
+*.njsproj
+*.sln
+*.sw?
+
+# ----------------------------------------------------------------------
+# ENVIRONMENT & SECRETS
+# ----------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+
+# ----------------------------------------------------------------------
+# JAVASCRIPT / NODE / BUN (General)
+# ----------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+# bun.lockb should be committed for deterministic builds, so it is NOT ignored here.
+# If you specifically want to ignore it, uncomment the next line:
+# bun.lockb
+
+dist/
+build/
+coverage/
+.turbo/
+.cache/
+
+# ----------------------------------------------------------------------
+# APP: WEB (Astro + React)
+# ----------------------------------------------------------------------
+apps/web/.astro/
+apps/web/dist/
+apps/web/.vercel/
+apps/web/.netlify/
+
+# ----------------------------------------------------------------------
+# APP: API VUN (ElysiaJS)
+# ----------------------------------------------------------------------
+apps/api-bun/dist/
+# bun.lockb is usually committed
+
+# ----------------------------------------------------------------------
+# APP: WORKER PY (Python + FastAPI)
+# ----------------------------------------------------------------------
+# Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+
+# Distribution / Build
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing / Type Checking
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ----------------------------------------------------------------------
+# PROJECT SPECIFIC: Hybrid Brain Data & Models
+# ----------------------------------------------------------------------
+# Worker Models (Heavy files from HuggingFace/Whisper)
+apps/worker-py/models/
+
+# Worker Cookies (Sensitive Instagram/Auth cookies)
+apps/worker-py/cookies/
+
+# Worker Downloads / Temp Media
+apps/worker-py/downloads/
+apps/worker-py/temp/
+apps/worker-py/output/
+
+# ----------------------------------------------------------------------
+# SUPABASE
+# ----------------------------------------------------------------------
+supabase/.temp/

@@ -1,0 +1,215 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+---
+
+<Layout title="Hybrid Brain 🧠 - Tu Segundo Cerebro Digital ">
+  <Header />
+  
+  <main class="relative overflow-hidden">
+    <!-- Hero Section -->
+    <section class="relative pt-20 pb-32 px-4 sm:px-6 lg:px-8">
+      <!-- Background decorations -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-1/4 -left-1/4 w-96 h-96 bg-primary-500/20 rounded-full blur-3xl animate-pulse-slow"></div>
+        <div class="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-accent-cyan/20 rounded-full blur-3xl animate-pulse-slow animation-delay-400"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary-500/5 to-transparent rounded-full"></div>
+      </div>
+
+      <div class="max-w-5xl mx-auto text-center relative z-10">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-300 text-sm font-medium mb-8 animate-float">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary-500"></span>
+          </span>
+          Potenciado por Llama 3.3 & Whisper AI
+        </div>
+
+        <!-- Title -->
+        <h1 class="text-5xl sm:text-6xl lg:text-7xl font-display font-bold mb-6 leading-tight">
+          <span class="text-dark-100">Tu Segundo</span>
+          <br />
+          <span class="text-gradient">Cerebro Digital</span>
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-xl sm:text-2xl text-dark-400 max-w-3xl mx-auto mb-10 leading-relaxed">
+          Transforma videos de <span class="text-dark-200 font-medium">YouTube</span> e <span class="text-dark-200 font-medium">Instagram</span> en 
+          <span class="text-primary-400">conocimiento estructurado</span>. 
+          Transcripción con IA, resúmenes inteligentes y almacenamiento automático en Notion.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="/dashboard" class="btn-primary text-lg px-8 py-4">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Comenzar Ahora
+          </a>
+          <a href="#features" class="btn-secondary text-lg px-8 py-4">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+            Ver Cómo Funciona
+          </a>
+        </div>
+
+        <!-- Platforms -->
+        <div class="flex items-center justify-center gap-8 mt-16 text-dark-500">
+          <span class="text-sm">Soporta:</span>
+          <div class="flex items-center gap-2">
+            <svg class="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
+              <path fill="white" d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+            <span class="text-dark-400">YouTube</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <svg class="w-6 h-6 text-pink-500" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+            </svg>
+            <span class="text-dark-400">Instagram</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-transparent via-dark-900/50 to-transparent">
+      <div class="max-w-6xl mx-auto">
+        <div class="text-center mb-16">
+          <h2 class="text-3xl sm:text-4xl font-display font-bold text-dark-100 mb-4">
+            ¿Cómo funciona?
+          </h2>
+          <p class="text-lg text-dark-400 max-w-2xl mx-auto">
+            Un flujo automatizado que transforma contenido multimedia en conocimiento estructurado.
+          </p>
+        </div>
+
+        <!-- Steps -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Step 1 -->
+          <div class="card-hover p-8 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-3xl mx-auto mb-6 shadow-lg shadow-primary-500/25">
+              📥
+            </div>
+            <div class="badge-primary mb-4">Paso 1</div>
+            <h3 class="text-xl font-bold text-dark-100 mb-3">Pega el Link</h3>
+            <p class="text-dark-400">
+              Copia cualquier URL de YouTube o Instagram Reel. El sistema detecta automáticamente la plataforma.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="card-hover p-8 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-cyan to-cyan-700 flex items-center justify-center text-3xl mx-auto mb-6 shadow-lg shadow-cyan-500/25">
+              🧠
+            </div>
+            <div class="badge-primary mb-4">Paso 2</div>
+            <h3 class="text-xl font-bold text-dark-100 mb-3">IA Procesa</h3>
+            <p class="text-dark-400">
+              Whisper transcribe el audio y Llama 3.3 genera resúmenes, puntos clave, etiquetas y análisis de sentimiento.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="card-hover p-8 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-pink to-pink-700 flex items-center justify-center text-3xl mx-auto mb-6 shadow-lg shadow-pink-500/25">
+              📝
+            </div>
+            <div class="badge-primary mb-4">Paso 3</div>
+            <h3 class="text-xl font-bold text-dark-100 mb-3">Guardado Automático</h3>
+            <p class="text-dark-400">
+              Todo se guarda automáticamente en tu base de datos de Notion con formato rico y organizado.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tech Stack Section -->
+    <section class="py-24 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-4xl mx-auto">
+        <div class="card p-8 sm:p-12">
+          <div class="text-center mb-12">
+            <h2 class="text-3xl font-display font-bold text-dark-100 mb-4">
+              Stack Tecnológico
+            </h2>
+            <p class="text-dark-400">
+              Construido con tecnologías modernas para máximo rendimiento.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+            <div class="flex flex-col items-center p-4 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-colors">
+              <span class="text-3xl mb-2">⚡</span>
+              <span class="font-medium text-dark-200">Astro</span>
+              <span class="text-xs text-dark-500">Frontend</span>
+            </div>
+            <div class="flex flex-col items-center p-4 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-colors">
+              <span class="text-3xl mb-2">🍞</span>
+              <span class="font-medium text-dark-200">Bun</span>
+              <span class="text-xs text-dark-500">Backend</span>
+            </div>
+            <div class="flex flex-col items-center p-4 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-colors">
+              <span class="text-3xl mb-2">🐍</span>
+              <span class="font-medium text-dark-200">Python</span>
+              <span class="text-xs text-dark-500">Worker</span>
+            </div>
+            <div class="flex flex-col items-center p-4 rounded-xl bg-dark-800/50 hover:bg-dark-700/50 transition-colors">
+              <span class="text-3xl mb-2">🐳</span>
+              <span class="font-medium text-dark-200">Docker</span>
+              <span class="text-xs text-dark-500">Deploy</span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="flex flex-wrap justify-center gap-3">
+            <span class="badge-primary">Whisper AI</span>
+            <span class="badge-primary">Llama 3.3 70B</span>
+            <span class="badge-primary">Groq</span>
+            <span class="badge-primary">Notion API</span>
+            <span class="badge-primary">FastAPI</span>
+            <span class="badge-primary">ElysiaJS</span>
+            <span class="badge-primary">React</span>
+            <span class="badge-primary">TailwindCSS</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-3xl sm:text-4xl font-display font-bold text-dark-100 mb-6">
+          ¿Listo para potenciar tu memoria?
+        </h2>
+        <p class="text-lg text-dark-400 mb-10 max-w-2xl mx-auto">
+          Deja de perder el conocimiento de los videos que consumes. Empieza a construir tu segundo cerebro hoy.
+        </p>
+        <a href="/dashboard" class="btn-primary text-lg px-10 py-5">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Ir al Dashboard
+        </a>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-8 px-4 border-t border-dark-800/50">
+      <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-dark-500">
+          <span class="text-2xl">🧠</span>
+          <span>Hybrid Brain © 2026</span>
+        </div>
+        <div class="flex items-center gap-6 text-dark-500">
+          <span>Hecho con ❤️ y mucha ☕</span>
+        </div>
+      </div>
+    </footer>
+  </main>
+</Layout>

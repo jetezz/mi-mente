@@ -1,0 +1,19 @@
+{
+  "name": "brain-api",
+  "version": "1.0.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "dev": "bun --watch src/index.ts"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "latest",
+    "@notionhq/client": "^2.2.14",
+    "@supabase/supabase-js": "^2.90.1",
+    "elysia": "latest"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}
