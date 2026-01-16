@@ -130,7 +130,7 @@ export class NotionIndexer {
       }
 
       const duration = Date.now() - startTime;
-      console.log(`\n✅ Indexación completada: ${pagesIndexed} páginas indexadas, ${pagesDeleted} eliminadas, ${chunksCreated} chunks en ${duration}ms`);
+      console.log(`\n✅ ✨ Indexación completada: ${pagesIndexed} páginas indexadas, ${pagesDeleted} eliminadas, ${chunksCreated} chunks en ${duration}ms`);
 
       return {
         success: errors.length === 0,
@@ -158,7 +158,7 @@ export class NotionIndexer {
    */
   async indexPage(
     userId: string,
-    page: { id: string; title: string; content: string; category?: string; lastEdited: string }
+    page: { id: string; title: string; content: string; categories?: string[]; lastEdited: string }
   ): Promise<IndexedPage & { deleted?: boolean }> {
     if (!this.supabase) {
       throw new Error('Supabase no configurado');
@@ -194,17 +194,47 @@ export class NotionIndexer {
       const chunkTexts = chunks.map(c => c.content);
       const embeddingResponse = await embeddingClient.embed(chunkTexts);
 
-      // 4. Resolver categoryId desde el nombre de categoría
+      // 4. Resolver y crear categorías
       let categoryId: string | null = null;
-      if (page.category) {
-        const { data: categories } = await this.supabase
-          .from('categories')
-          .select('id')
-          .eq('name', page.category)
-          .eq('user_id', userId)
-          .limit(1);
+      if (page.categories && page.categories.length > 0) {
+        // Procesar todas las categorías encontradas
+        for (const [index, categoryName] of page.categories.entries()) {
+          // 4.1. Buscar si existe
+          const { data: categories } = await this.supabase
+            .from('categories')
+            .select('id')
+            .eq('name', categoryName)
+            .eq('user_id', userId)
+            .limit(1);
 
-        categoryId = categories?.[0]?.id || null;
+          let currentCatId: string;
+
+          if (categories && categories.length > 0) {
+            currentCatId = categories[0].id;
+          } else {
+            // 4.2. Crear categoría si no existe
+            console.log(`   📁 Creando nueva categoría: "${categoryName}"`);
+            const { data: newCategory, error: catError } = await this.supabase
+              .from('categories')
+              .insert({
+                user_id: userId,
+                name: categoryName
+              })
+              .select('id')
+              .single();
+
+            if (catError) {
+              console.error(`Error creando categoría "${categoryName}":`, catError);
+              continue;
+            }
+            currentCatId = newCategory.id;
+          }
+
+          // Asignar la primera categoría como la principal para la página
+          if (index === 0) {
+            categoryId = currentCatId;
+          }
+        }
       }
 
       // 5. Upsert en notion_pages
@@ -420,18 +450,23 @@ export class NotionIndexer {
     }
 
     try {
-      // Usar la función SQL que creamos
-      const { data, error } = await this.supabase
+      // Usar la función SQL para contadores masivos (más rápido)
+      const { data: rpcData } = await this.supabase
         .rpc('get_indexing_stats', { p_user_id: userId });
 
-      if (error) throw error;
+      const stats = rpcData?.[0] || {};
 
-      const stats = data?.[0] || {};
+      // Obtener conteo real de categorías (la RPC solo cuenta las enlazadas)
+      const { count: categoryCount } = await this.supabase
+        .from('categories')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
       return {
         totalPages: stats.total_pages || 0,
         totalChunks: stats.total_chunks || 0,
         lastIndexedAt: stats.last_indexed_at || null,
-        categoriesIndexed: stats.categories_indexed || 0,
+        categoriesIndexed: categoryCount || 0, // Usar conteo directo
       };
 
     } catch (error) {

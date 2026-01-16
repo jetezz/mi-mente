@@ -34,6 +34,7 @@ interface IndexedPage {
 interface IndexingResult {
   success: boolean;
   pagesIndexed: number;
+  pagesDeleted: number;
   chunksCreated: number;
   errors: string[];
   duration: number;
@@ -316,7 +317,7 @@ export function IndexingDashboard() {
                 {indexingResult.success ? 'Indexación completada' : 'Indexación con errores'}
               </p>
               <p className="text-sm text-dark-400">
-                {indexingResult.pagesIndexed} páginas, {indexingResult.chunksCreated} chunks en {(indexingResult.duration / 1000).toFixed(1)}s
+                {indexingResult.pagesIndexed} páginas indexadas, {indexingResult.pagesDeleted} eliminadas, {indexingResult.chunksCreated} chunks en {(indexingResult.duration / 1000).toFixed(1)}s
               </p>
               {indexingResult.errors.length > 0 && (
                 <ul className="mt-2 text-sm text-red-400">

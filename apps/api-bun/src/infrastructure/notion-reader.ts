@@ -15,7 +15,7 @@ interface NotionPageContent {
   id: string;
   title: string;
   url: string;
-  category?: string;
+  categories: string[];
   content: string; // Markdown plano para el LLM
   lastEdited: string;
 }
@@ -135,13 +135,13 @@ export class NotionReader {
         if ('properties' in page) {
           const content = await this.getPageContent(page.id);
           const title = this.extractTitle(page as PageObjectResponse);
-          const category = this.extractCategory(page as PageObjectResponse);
+          const categories = this.extractCategories(page as PageObjectResponse);
 
           pages.push({
             id: page.id,
             title,
             url: (page as PageObjectResponse).url,
-            category,
+            categories,
             content,
             lastEdited: page.last_edited_time,
           });
@@ -198,13 +198,13 @@ export class NotionReader {
           try {
             const content = await this.getPageContent(page.id);
             const title = this.extractTitle(page as PageObjectResponse);
-            const category = this.extractCategory(page as PageObjectResponse);
+            const categories = this.extractCategories(page as PageObjectResponse);
 
             pages.push({
               id: page.id,
               title,
               url: (page as PageObjectResponse).url,
-              category,
+              categories,
               content,
               lastEdited: page.last_edited_time,
             });
@@ -337,24 +337,24 @@ export class NotionReader {
   }
 
   /**
-   * Extrae la categoría de una página
+   * Extrae las categorías de una página
    */
-  private extractCategory(page: PageObjectResponse): string | undefined {
+  private extractCategories(page: PageObjectResponse): string[] {
     // Buscar propiedad 'categoria' (minusculas, como en tu DB)
     const categoryProp = page.properties.categoria || page.properties.Category;
 
     if (categoryProp) {
       // Soporte para Multi-Select (Tu caso real)
-      if (categoryProp.type === 'multi_select' && categoryProp.multi_select.length > 0) {
-        return categoryProp.multi_select.map(opt => opt.name).join(', ');
+      if (categoryProp.type === 'multi_select') {
+        return categoryProp.multi_select.map(opt => opt.name);
       }
       // Soporte Legacy para Select
       if (categoryProp.type === 'select' && categoryProp.select) {
-        return categoryProp.select.name;
+        return [categoryProp.select.name];
       }
     }
 
-    return undefined;
+    return [];
   }
 
   /**
@@ -383,6 +383,7 @@ export class NotionReader {
             id: page.id,
             title,
             url: page.url,
+            categories: [], // Search results might not fetch full properties initially
             content,
             lastEdited: page.last_edited_time,
           });
