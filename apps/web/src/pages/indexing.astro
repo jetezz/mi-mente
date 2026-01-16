@@ -1,0 +1,134 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { StatusIndicator } from '../components/StatusIndicator';
+import { IndexingDashboard } from '../components/IndexingDashboard';
+---
+
+<Layout title="Indexación Vectorial - Hybrid Brain 🧠" description="Gestiona la indexación semántica de tu contenido">
+  <Header showDashboardLink={true} />
+  
+  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+      <!-- Page Header -->
+      <div class="mb-8">
+        <div class="flex items-center gap-3 mb-2">
+          <h1 class="text-3xl font-display font-bold text-dark-100">
+            🔮 Motor de Búsqueda Semántica
+          </h1>
+          <span class="px-2 py-1 text-xs bg-primary-500/20 text-primary-400 rounded-full">
+            Fase 6
+          </span>
+        </div>
+        <p class="text-dark-400">
+          Indexa tu contenido de Notion para búsqueda vectorial con IA. Mucho más rápido y preciso que la búsqueda directa.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Main content: Indexing Dashboard -->
+        <div class="lg:col-span-3">
+          <IndexingDashboard client:load />
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+          <StatusIndicator client:load />
+          
+          <!-- How it works -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              🔬 Cómo funciona
+            </h3>
+            <ul class="space-y-3 text-sm text-dark-400">
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">1.</span>
+                <span>Lee páginas de Notion</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">2.</span>
+                <span>Divide en fragmentos (chunks)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">3.</span>
+                <span>Genera embeddings con Cohere</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-primary-400 font-mono">4.</span>
+                <span>Almacena vectores en Supabase</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Architecture -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              🏗️ Arquitectura
+            </h3>
+            <div class="space-y-2 text-sm text-dark-400 font-mono">
+              <p class="text-accent-cyan">Notion → Texto</p>
+              <p class="text-primary-400 pl-4">↓ Chunking</p>
+              <p class="text-accent-magenta pl-4">↓ Embeddings (Cohere)</p>
+              <p class="text-green-400">→ Supabase (pgvector)</p>
+            </div>
+          </div>
+
+          <!-- Benefits -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              ✨ Beneficios
+            </h3>
+            <ul class="space-y-2 text-sm text-dark-400">
+              <li class="flex items-start gap-2">
+                <span class="text-green-400">✓</span>
+                <span>Búsqueda semántica (no keywords)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-green-400">✓</span>
+                <span>Respuestas más precisas</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-green-400">✓</span>
+                <span>Menor latencia (sin llamar Notion)</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-green-400">✓</span>
+                <span>Escala a miles de documentos</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="card p-4">
+            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
+              ⚡ Navegación
+            </h3>
+            <div class="flex flex-col gap-2">
+              <a 
+                href="/chat" 
+                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm"
+              >
+                <span>💬</span>
+                Chat Semántico
+              </a>
+              <a 
+                href="/dashboard" 
+                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm"
+              >
+                <span>➕</span>
+                Procesar URLs
+              </a>
+              <a 
+                href="/categories" 
+                class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm"
+              >
+                <span>📁</span>
+                Gestionar Categorías
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>

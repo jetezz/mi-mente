@@ -209,9 +209,298 @@ docker-compose build --no-cache web && \
 docker-compose up --build
 
 docker-compose logs -f
+
+# para resetear variables de entorno
+docker-compose down && docker-compose up -d
 ```
 
 **Referencias y Recursos:**
 *   **Video Midudev:** Implementación de rotación de claves API para IA gratuita.
 *   **Faster-Whisper:** [GitHub](https://github.com/SYSTRAN/faster-whisper)
 *   **Astro + Supabase:** Guías oficiales de integración SSR.
+
+---
+
+## 🔮 Fase 6: Motor de Búsqueda Semántica (Vectores en Supabase)
+
+> **Visión:** Notion NO debe ser tu motor de búsqueda. Supabase SÍ debe ser tu motor de recuperación semántica. La IA solo debe ver contexto ya filtrado.
+
+**Flujo Principal:**
+```
+Notion → Indexación → Supabase Vectorial → Query → IA → (opcional) Notion
+```
+
+---
+
+### 6.1 Estructura de Datos Vectorial en Supabase
+
+**Extensión requerida:**
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+#### A. Tabla `notion_pages` (Metadata)
+Contiene metadata de la página, NO texto largo.
+
+```sql
+CREATE TABLE notion_pages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  notion_page_id TEXT UNIQUE NOT NULL,
+  title TEXT,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  summary TEXT,
+  last_edited_time TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Responsabilidad:**
+- Identificar la página original en Notion
+- Clasificar por categoría
+- Facilitar filtros previos al búsqueda vectorial
+
+#### B. Tabla `notion_page_chunks` (Contenido Vectorizado)
+Aquí vive el contenido fragmentado y sus embeddings.
+
+```sql
+CREATE TABLE notion_page_chunks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  page_id UUID REFERENCES notion_pages(id) ON DELETE CASCADE,
+  chunk_index INT,
+  content TEXT NOT NULL,
+  embedding VECTOR(1536), -- OpenAI ada-002 o similar
+  created_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+**Índice vectorial (CRÍTICO para performance):**
+```sql
+CREATE INDEX ON notion_page_chunks
+USING ivfflat (embedding vector_cosine_ops)
+WITH (lists = 100);
+```
+
+#### C. Por qué esta estructura
+- **Separación documento/fragmentos:** Permite reindexar chunks sin tocar metadata
+- **Filtros previos:** Puedes filtrar por `category_id` antes de buscar vectorialmente
+- **Escalabilidad:** Compatible con miles de páginas
+- **Agnóstico al modelo:** Funciona con cualquier proveedor de embeddings
+
+---
+
+### 6.2 Pipeline de Indexación (OFFLINE)
+
+> ⚠️ Este proceso NO ocurre cuando el usuario pregunta. Es un job en background.
+
+**Flujo:**
+```
+Notion API → Texto → Chunking → Embeddings → Supabase (pages + chunks)
+```
+
+#### Paso 1: Leer páginas desde Notion
+```typescript
+// Obtener página con ID, título y bloques
+const page = await notion.pages.retrieve({ page_id });
+const blocks = await notion.blocks.children.list({ block_id: page_id });
+```
+
+#### Paso 2: Normalizar contenido
+- Convertir bloques Notion → texto plano estructurado
+- Eliminar: Headers redundantes, elementos decorativos
+- Mantener: Párrafos, listas, subtítulos
+
+#### Paso 3: Chunking
+Dividir el texto en fragmentos de:
+- **300–800 tokens** por chunk
+- Solape opcional: 50 tokens (para contexto)
+
+```typescript
+const chunks = splitIntoChunks(normalizedText, {
+  maxTokens: 600,
+  overlap: 50
+});
+```
+
+#### Paso 4: Generar Embeddings
+Para cada chunk:
+```typescript
+const embedding = await openai.embeddings.create({
+  model: "text-embedding-ada-002",
+  input: chunk.content
+});
+```
+
+**Alternativas gratuitas:**
+- Groq (si disponible)
+- Sentence-Transformers local
+- Cohere Embed
+
+#### Paso 5: Persistir en Supabase
+```typescript
+// Upsert página
+await supabase.from('notion_pages').upsert({
+  notion_page_id: page.id,
+  title: page.properties.Name,
+  category_id,
+  summary: generatedSummary
+});
+
+// Insertar chunks
+await supabase.from('notion_page_chunks').insert(
+  chunks.map((chunk, i) => ({
+    page_id: notionPage.id,
+    chunk_index: i,
+    content: chunk.text,
+    embedding: chunk.embedding
+  }))
+);
+```
+
+**Resultado:** Supabase queda como índice semántico persistente.
+
+---
+
+### 6.3 Pipeline de Recuperación (QUERY TIME)
+
+> ✅ Este flujo SÍ ocurre cuando el usuario pregunta.
+
+**Flujo:**
+```
+Pregunta usuario → Embedding → Búsqueda vectorial Supabase → Contexto relevante → IA
+```
+
+#### Paso 1: Embedding de la pregunta
+```typescript
+const questionEmbedding = await embed(userQuestion);
+```
+
+#### Paso 2: Búsqueda vectorial en Supabase
+```sql
+SELECT
+  npc.content,
+  np.title,
+  np.notion_page_id,
+  1 - (npc.embedding <=> :question_embedding) AS similarity
+FROM notion_page_chunks npc
+JOIN notion_pages np ON np.id = npc.page_id
+WHERE np.category_id IN (:category_ids) -- Filtro opcional por categoría
+ORDER BY npc.embedding <=> :question_embedding
+LIMIT 5;
+```
+
+**Nota:** `<=>` es el operador de distancia coseno en pgvector.
+
+#### Paso 3: Construcción del contexto
+```typescript
+const context = relevantChunks
+  .map(chunk => `## ${chunk.title}\n${chunk.content}`)
+  .join('\n\n---\n\n');
+```
+
+#### Paso 4: Llamada a la IA
+```typescript
+const response = await llm.chat({
+  system: `Responde basándote ÚNICAMENTE en el siguiente contexto:\n\n${context}`,
+  user: userQuestion
+});
+```
+
+**La IA recibe:**
+- ✅ Pregunta
+- ✅ Contexto filtrado y relevante
+
+**La IA NUNCA recibe:**
+- ❌ Todas las páginas
+- ❌ Notion completo
+
+---
+
+### 6.4 Comunicación con Notion (Cuándo y Por Qué)
+
+#### ❌ Cuándo NO llamar a Notion
+- Para responder preguntas
+- Para buscar información
+- Para ranking semántico
+
+> Eso ya lo hace Supabase vectorial.
+
+#### ✅ Cuándo SÍ llamar a Notion
+
+**Caso 1: Mostrar página original**
+Después de responder, ofrecer link a la fuente:
+```typescript
+const notionUrl = `https://notion.so/${notionPageId.replace(/-/g, '')}`;
+```
+
+**Caso 2: Actualización de contenido (Re-indexación)**
+Disparadores:
+- Webhook de Notion (cambio detectado)
+- Cron job programado
+- Botón manual en dashboard
+
+```
+Notion cambia → Reindexar página → Actualizar embeddings en Supabase
+```
+
+**Caso 3: Recuperación completa bajo demanda**
+Si el usuario pide: "Muéstrame el documento completo"
+- Sabemos qué página es (tenemos `notion_page_id`)
+- La traemos de Notion directamente
+- La mostramos (NO la pasamos a la IA)
+
+---
+
+### 6.5 Diagrama de Flujos
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   INDEXACIÓN (Offline)                  │
+├─────────────────────────────────────────────────────────┤
+│  Notion API ──► Texto ──► Chunks ──► Embeddings         │
+│                                         │               │
+│                                         ▼               │
+│                                    Supabase             │
+│                              (pages + chunks)           │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│                  RECUPERACIÓN (Query)                   │
+├─────────────────────────────────────────────────────────┤
+│  Usuario ──► Embedding ──► Búsqueda Vectorial           │
+│                                   │                     │
+│                                   ▼                     │
+│                          Top-K Chunks                   │
+│                                   │                     │
+│                                   ▼                     │
+│                     Contexto ──► LLM ──► Respuesta      │
+└─────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────┐
+│              COMUNICACIÓN CON NOTION                    │
+├─────────────────────────────────────────────────────────┤
+│  Supabase identifica página                             │
+│         │                                               │
+│         ├──► Mostrar link original                      │
+│         ├──► Re-indexar si hay cambios                  │
+│         └──► Recuperar documento completo (bajo demanda)│
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 6.6 Conclusión Técnica
+
+| Componente | Rol |
+|------------|-----|
+| **Supabase** | Motor semántico (vectores) |
+| **Notion** | Fuente de verdad (datos originales) |
+| **IA** | Razonador, NO buscador |
+| **Vectorización** | Proceso offline |
+| **Query** | Ligero y rápido |
+
+**Beneficios de esta arquitectura:**
+- ✅ Escala a miles de documentos
+- ✅ Reduce costos de API
+- ✅ Mejora precisión de recuperación
+- ✅ Evita dependencias innecesarias de Notion en tiempo real

@@ -14,7 +14,8 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 | **Fase 2** | Worker Python (Los Oídos) | 🟡 60% |
 | **Fase 3** | Orquestador Bun (El Cerebro) | 🟡 80% |
 | **Fase 4** | Frontend Astro (La Cara) + Auth | 🟡 90% |
-| **Fase 5** | Memoria RAG (La Memoria) | ✅ 100% |
+| **Fase 5** | Chat con Notion (La Memoria) | ✅ 100% |
+| **Fase 6** | Motor Semántico Vectorial (El Cerebro 2.0) | 🟢 90% |
 
 ---
 
@@ -203,6 +204,76 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [x] 5.4.3 Árbol jerárquico de categorías ✅ `GET /categories/tree`
   - [x] 5.4.4 Componente selector de categoría ✅ `CategorySelector.tsx`
   - [x] 5.4.5 Script SQL para crear tabla en Supabase ✅ `supabase/schema.sql`
+
+---
+
+### 🔮 Fase 6: Motor de Búsqueda Semántica Vectorial (El Cerebro 2.0)
+> **Objetivo:** Reemplazar las consultas directas a Notion por búsqueda semántica con embeddings vectoriales en Supabase.
+
+> **Visión:** `Notion = Fuente de verdad` → `Supabase = Motor de búsqueda` → `IA = Razonador`
+
+- [x] **6.1 Estructura de Datos Vectorial (Supabase)** ✅ `supabase/schema.sql`
+  - [x] 6.1.1 Habilitar extensión `pgvector` en Supabase
+  - [x] 6.1.2 Crear tabla `notion_pages` (metadata)
+  - [x] 6.1.3 Crear tabla `notion_page_chunks` (fragmentos vectorizados)
+  - [x] 6.1.4 Crear índice IVFFlat para búsqueda vectorial eficiente
+  - [x] 6.1.5 Añadir RLS policies para ambas tablas
+  - [x] 6.1.6 Crear función SQL `match_chunks()` para búsqueda semántica
+
+- [x] **6.2 Servicio de Embeddings (api-bun)** ✅ `embedding-client.ts`
+  - [x] 6.2.1 Crear cliente de embeddings en `src/infrastructure/embedding-client.ts`
+  - [x] 6.2.2 Implementar proveedor Cohere (embed-multilingual-v3.0) - GRATUITO
+  - [x] 6.2.3 Implementar proveedor alternativo OpenAI (fallback)
+  - [x] 6.2.4 Configurar rotación automática entre proveedores (round-robin)
+  - [x] 6.2.5 Añadir rate limiting y manejo de errores
+
+- [x] **6.3 Pipeline de Indexación Offline** ✅ `notion-indexer.ts`
+  - [x] 6.3.1 Crear servicio `NotionIndexer` en `src/application/notion-indexer.ts`
+  - [x] 6.3.2 Implementar función `fetchNotionPages()`
+  - [x] 6.3.3 Implementar función `normalizeContent()`
+  - [x] 6.3.4 Implementar función `splitIntoChunks()` (300-800 tokens, overlap 50)
+  - [x] 6.3.5 Implementar función `generateEmbeddings()`
+  - [x] 6.3.6 Implementar función `persistToSupabase()`
+  - [x] 6.3.7 Crear lógica de detección de cambios (`detectChanges()`)
+  - [x] 6.3.8 Implementar re-indexación incremental (`indexIncremental()`)
+
+- [x] **6.4 Pipeline de Recuperación (Query Time)** ✅ `semantic-search.ts`
+  - [x] 6.4.1 Crear servicio `SemanticSearch` en `src/application/semantic-search.ts`
+  - [x] 6.4.2 Implementar `embedQuestion()` para vectorizar pregunta
+  - [x] 6.4.3 Implementar `searchSimilarChunks()` con búsqueda vectorial
+  - [x] 6.4.4 Añadir filtro opcional por `category_id` (y descendientes)
+  - [x] 6.4.5 Implementar `buildContext()` para concatenar chunks relevantes
+  - [x] 6.4.6 Limitar contexto por tokens máximos del LLM
+
+- [x] **6.5 Endpoints API (api-bun)** ✅ `index.ts`
+  - [x] 6.5.1 Crear `POST /index/trigger` — Disparar indexación manual
+  - [x] 6.5.2 Crear `POST /index/page/:notionPageId` — Indexar página específica
+  - [x] 6.5.3 Crear `GET /index/status` — Estado de la última indexación
+  - [x] 6.5.4 Crear `GET /index/pages` — Listar páginas indexadas
+  - [x] 6.5.5 Crear `DELETE /index/page/:id` — Eliminar página del índice
+  - [x] 6.5.6 Crear `POST /search` — Búsqueda semántica
+  - [x] 6.5.7 Crear `POST /ask/semantic` — Chat con búsqueda semántica
+  - [x] 6.5.8 Crear `GET /embeddings/test` — Test de embeddings
+
+- [x] **6.6 Interfaz de Indexación (Frontend)** ✅ `/indexing`
+  - [x] 6.6.1 Crear página `/indexing` para gestión de contenido vectorizado
+  - [x] 6.6.2 Componente `IndexingDashboard.tsx` con estadísticas
+  - [x] 6.6.3 Botón "Sincronizar Ahora" para trigger manual
+  - [x] 6.6.4 Lista de páginas indexadas con opción de eliminar
+  - [x] 6.6.5 Indicador de progreso durante indexación
+  - [x] 6.6.6 Detección de cambios pendientes
+
+- [x] **6.7 Actualización del Chat Existente** ✅ `ChatInterface.tsx`
+  - [x] 6.7.1 Modificar `/chat` para usar nuevo endpoint semántico
+  - [x] 6.7.2 Mostrar puntuación de similitud junto a fuentes
+  - [x] 6.7.3 Añadir indicador de método usado (semántico vs directo)
+  - [x] 6.7.4 Link a página original de Notion desde cada fuente
+  - [x] 6.7.5 Toggle para alternar entre búsqueda semántica y directa
+
+- [ ] **6.8 Jobs Automáticos**
+  - [ ] 6.8.1 Implementar cron job para re-indexación periódica (cada 6h)
+  - [ ] 6.8.2 (Opcional) Configurar webhook de Notion para indexación en tiempo real
+  - [ ] 6.8.3 Sistema de notificaciones cuando hay errores de indexación
 
 ---
 

@@ -9,13 +9,19 @@ interface Message {
   sources?: {
     id: string;
     title: string;
-    url: string;
+    url?: string;
+    notionUrl?: string;
     category?: string;
+    similarity?: number;
+    excerpts?: string[];
   }[];
   metadata?: {
     tokensUsed: number;
     provider: string;
     processingTimeMs: number;
+    searchMethod?: 'semantic' | 'notion_direct';
+    chunksRetrieved?: number;
+    pagesUsed?: number;
   };
 }
 
@@ -32,6 +38,8 @@ export function ChatInterface() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [useSemanticSearch, setUseSemanticSearch] = useState(true); // Default: usar búsqueda semántica
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
@@ -41,6 +49,7 @@ export function ChatInterface() {
     const checkAuthAndLoad = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setIsAuthenticated(!!session);
+      setUserId(session?.user?.id || null);
 
       if (session) {
         fetchCategories();
@@ -52,6 +61,7 @@ export function ChatInterface() {
     // Escuchar cambios de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
+      setUserId(session?.user?.id || null);
       if (session) {
         fetchCategories();
       }
@@ -89,14 +99,30 @@ export function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Verificar que el usuario esté autenticado para búsqueda semántica
+      if (useSemanticSearch && !userId) {
+        throw new Error('Debes iniciar sesión para usar la búsqueda semántica');
+      }
+
+      // Elegir endpoint según el método de búsqueda
+      const endpoint = useSemanticSearch ? '/ask/semantic' : '/ask';
+      const body = useSemanticSearch
+        ? {
+          userId,
+          question: input,
+          categoryId: selectedCategory?.id,
+          maxChunks: 5,
+        }
+        : {
           question: input,
           categoryId: selectedCategory?.id,
           maxSources: 5,
-        }),
+        };
+
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -139,11 +165,22 @@ export function ChatInterface() {
           <div>
             <h2 className="text-lg font-semibold text-dark-100">Chat con tu Cerebro</h2>
             <p className="text-xs text-dark-500">
-              Pregunta sobre tus notas guardadas
+              {useSemanticSearch ? '🔮 Búsqueda Semántica (Fase 6)' : '📄 Búsqueda Directa en Notion'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Toggle de búsqueda semántica */}
+          <button
+            onClick={() => setUseSemanticSearch(!useSemanticSearch)}
+            className={`p-2 rounded-lg transition-colors ${useSemanticSearch
+              ? 'bg-primary-500/20 text-primary-400'
+              : 'bg-dark-700 text-dark-400'
+              }`}
+            title={useSemanticSearch ? 'Usando Búsqueda Semántica' : 'Usando Búsqueda Directa'}
+          >
+            {useSemanticSearch ? '🔮' : '📄'}
+          </button>
           <CategorySelector
             categories={categories}
             selected={selectedCategory}
@@ -295,12 +332,18 @@ function ChatMessage({ message }: { message: Message }) {
             {message.sources.map((source) => (
               <a
                 key={source.id}
-                href={source.url}
+                href={source.notionUrl || source.url || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs px-2 py-1 rounded-full bg-dark-700 text-primary-400 hover:bg-dark-600 transition-colors"
+                className="text-xs px-2 py-1 rounded-full bg-dark-700 text-primary-400 hover:bg-dark-600 transition-colors flex items-center gap-1"
+                title={source.excerpts?.[0] || source.title}
               >
-                📄 {source.title.slice(0, 30)}{source.title.length > 30 ? '...' : ''}
+                📄 {source.title.slice(0, 25)}{source.title.length > 25 ? '...' : ''}
+                {source.similarity !== undefined && (
+                  <span className="text-dark-500 ml-1">
+                    ({Math.round(source.similarity * 100)}%)
+                  </span>
+                )}
               </a>
             ))}
           </div>
@@ -308,8 +351,26 @@ function ChatMessage({ message }: { message: Message }) {
 
         {/* Metadata */}
         {message.metadata && (
-          <div className="mt-1 text-xs text-dark-600">
-            {message.metadata.provider} • {message.metadata.tokensUsed} tokens • {message.metadata.processingTimeMs}ms
+          <div className="mt-1 text-xs text-dark-600 flex items-center gap-2">
+            <span>{message.metadata.provider}</span>
+            <span>•</span>
+            <span>{message.metadata.tokensUsed} tokens</span>
+            <span>•</span>
+            <span>{message.metadata.processingTimeMs}ms</span>
+            {message.metadata.searchMethod && (
+              <>
+                <span>•</span>
+                <span className={message.metadata.searchMethod === 'semantic' ? 'text-primary-400' : 'text-dark-400'}>
+                  {message.metadata.searchMethod === 'semantic' ? '🔮 Semántico' : '📄 Directo'}
+                </span>
+              </>
+            )}
+            {message.metadata.chunksRetrieved !== undefined && (
+              <>
+                <span>•</span>
+                <span>{message.metadata.chunksRetrieved} chunks</span>
+              </>
+            )}
           </div>
         )}
       </div>

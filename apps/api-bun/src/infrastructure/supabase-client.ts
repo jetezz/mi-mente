@@ -19,6 +19,7 @@ export interface CategoryTree extends Category {
 
 export class SupabaseService {
   private client: SupabaseClient | null = null;
+  private adminClient: SupabaseClient | null = null; // Cliente con service_role para bypass RLS
   private isConfigured: boolean = false;
 
   constructor() {
@@ -27,14 +28,28 @@ export class SupabaseService {
 
   private initialize() {
     const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
+    const anonKey = process.env.SUPABASE_ANON_KEY;
+    const serviceKey = process.env.SUPABASE_SERVICE_KEY;
 
-    if (url && key) {
-      this.client = createClient(url, key);
+    if (url && anonKey) {
+      this.client = createClient(url, anonKey);
       this.isConfigured = true;
-      console.log('🗄️ Supabase Client inicializado');
+      console.log('🗄️ Supabase Client inicializado (anon)');
     } else {
       console.warn('⚠️ Supabase no configurado. Añade SUPABASE_URL y SUPABASE_ANON_KEY al .env');
+    }
+
+    // Cliente admin para operaciones del backend (bypass RLS)
+    if (url && serviceKey) {
+      this.adminClient = createClient(url, serviceKey, {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      });
+      console.log('🔐 Supabase Admin Client inicializado (service_role)');
+    } else {
+      console.warn('⚠️ Supabase Admin no configurado. Añade SUPABASE_SERVICE_KEY para indexación.');
     }
   }
 
@@ -43,6 +58,27 @@ export class SupabaseService {
    */
   isReady(): boolean {
     return this.isConfigured && this.client !== null;
+  }
+
+  /**
+   * Verifica si el cliente admin está configurado (para bypass RLS)
+   */
+  isAdminReady(): boolean {
+    return this.adminClient !== null;
+  }
+
+  /**
+   * Obtiene el cliente normal (con RLS)
+   */
+  getClient(): SupabaseClient | null {
+    return this.client;
+  }
+
+  /**
+   * Obtiene el cliente admin (bypass RLS) - usar para operaciones del backend
+   */
+  getAdminClient(): SupabaseClient | null {
+    return this.adminClient;
   }
 
   /**
