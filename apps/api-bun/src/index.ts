@@ -262,6 +262,252 @@ const app = new Elysia()
     };
   })
 
+  // ============ 📝 Fase 8: Nuevo Flujo con Preview/Edit/Save ============
+
+  .post('/process/preview', async ({ body }) => {
+    // Procesa el contenido pero NO guarda en Notion
+    // Devuelve el contenido para preview/edición
+    const { url, customPrompt } = body as {
+      url: string;
+      customPrompt?: string;
+    };
+
+    if (!url) {
+      throw new Error('URL es requerida');
+    }
+
+    console.log(`\n📥 [Preview] Procesando: ${url}`);
+    if (customPrompt) {
+      console.log(`   📝 Custom prompt: "${customPrompt.slice(0, 50)}..."`);
+    }
+
+    // 1. Descargar y transcribir
+    const transcription = await workerClient.transcribe(url);
+
+    // 2. Generar resumen con IA (usando prompt personalizado si existe)
+    let summary: string;
+    if (customPrompt) {
+      // Usar método de summarize con prompt personalizado
+      const messages = [
+        {
+          role: 'system' as const,
+          content: `Eres un experto en crear resúmenes concisos y útiles.
+${customPrompt}
+
+El resumen debe ser en español y capturar la esencia del contenido.`
+        },
+        {
+          role: 'user' as const,
+          content: `Resume el siguiente contenido:\n\n${transcription.text.slice(0, 10000)}`
+        }
+      ];
+      const response = await aiClient.chat(messages);
+      summary = response.content;
+    } else {
+      summary = await aiClient.summarize(transcription.text);
+    }
+
+    // 3. Extraer puntos clave y sentimiento (en paralelo)
+    const [keyPoints, sentiment] = await Promise.all([
+      aiClient.extractKeyPoints(transcription.text),
+      aiClient.analyzeSentiment(transcription.text),
+    ]);
+
+    // 4. NO generamos tags automáticamente - el usuario los elige
+
+    console.log(`   ✅ [Preview] Listo para edición`);
+
+    return {
+      success: true,
+      title: transcription.title || 'Sin título',
+      summary,
+      keyPoints,
+      sentiment,
+      transcription: transcription.text.slice(0, 1000), // Solo muestra para referencia
+      duration: transcription.duration,
+    };
+  })
+
+  .post('/process/save', async ({ body }) => {
+    // Guarda el contenido EDITADO por el usuario en Notion
+    // Soporta tanto Markdown como el formato legacy (summary + keyPoints)
+    const { url, title, summary, keyPoints, markdown, tags, userId } = body as {
+      url: string;
+      title: string;
+      summary?: string;
+      keyPoints?: string[];
+      markdown?: string;  // Nuevo: contenido en Markdown
+      tags: string[];
+      userId?: string;
+    };
+
+    if (!url || !title) {
+      throw new Error('URL y título son requeridos');
+    }
+
+    if (!summary && !markdown) {
+      throw new Error('Se requiere summary o markdown');
+    }
+
+    console.log(`\n💾 [Save] Guardando en Notion: "${title}"`);
+
+    if (!notionClient.isReady()) {
+      throw new Error('Notion no está configurado');
+    }
+
+    let pageId: string | null;
+
+    // Si hay Markdown, usar el nuevo método
+    if (markdown) {
+      pageId = await notionClient.createPageFromMarkdown({
+        title,
+        markdown,
+        tags: tags || [],
+        sourceUrl: url,
+      });
+    } else {
+      // Legacy: construir Markdown desde summary + keyPoints
+      const legacyMarkdown = `## 📋 Resumen
+
+${summary}
+
+---
+
+## 💡 Puntos Clave
+
+${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
+`;
+      pageId = await notionClient.createPageFromMarkdown({
+        title,
+        markdown: legacyMarkdown,
+        tags: tags || [],
+        sourceUrl: url,
+      });
+    }
+
+    if (!pageId) {
+      throw new Error('Error creando página en Notion');
+    }
+
+    console.log(`   ✅ [Save] Página creada: ${pageId}`);
+
+    return {
+      success: true,
+      notionPageId: pageId,
+      title,
+    };
+  })
+
+  // ============ 🏷️ Tags CRUD (Fase 8) ============
+
+  .get('/tags', async ({ query }) => {
+    const userId = query.userId as string;
+
+    if (!userId) {
+      throw new Error('userId es requerido');
+    }
+
+    const client = supabaseService.getAdminClient();
+    if (!client) {
+      throw new Error('Supabase no configurado');
+    }
+
+    const { data, error } = await client
+      .from('tags')
+      .select('*')
+      .eq('user_id', userId)
+      .order('name');
+
+    if (error) {
+      throw new Error(`Error obteniendo tags: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      tags: data || [],
+    };
+  })
+
+  .post('/tags', async ({ body }) => {
+    const { userId, name, color } = body as {
+      userId: string;
+      name: string;
+      color?: string;
+    };
+
+    if (!userId || !name) {
+      throw new Error('userId y name son requeridos');
+    }
+
+    const client = supabaseService.getAdminClient();
+    if (!client) {
+      throw new Error('Supabase no configurado');
+    }
+
+    const { data, error } = await client
+      .from('tags')
+      .insert({
+        user_id: userId,
+        name: name.trim().toLowerCase(),
+        color: color || '#8B5CF6',
+      })
+      .select()
+      .single();
+
+    if (error) {
+      // Si es error de duplicado, devolver el existente
+      if (error.code === '23505') {
+        const { data: existing } = await client
+          .from('tags')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('name', name.trim().toLowerCase())
+          .single();
+
+        return {
+          success: true,
+          tag: existing,
+          existed: true,
+        };
+      }
+      throw new Error(`Error creando tag: ${error.message}`);
+    }
+
+    return {
+      success: true,
+      tag: data,
+      existed: false,
+    };
+  })
+
+  .delete('/tags/:tagId', async ({ params, query }) => {
+    const { tagId } = params;
+    const userId = query.userId as string;
+
+    if (!userId) {
+      throw new Error('userId es requerido');
+    }
+
+    const client = supabaseService.getAdminClient();
+    if (!client) {
+      throw new Error('Supabase no configurado');
+    }
+
+    const { error } = await client
+      .from('tags')
+      .delete()
+      .eq('id', tagId)
+      .eq('user_id', userId);
+
+    if (error) {
+      throw new Error(`Error eliminando tag: ${error.message}`);
+    }
+
+    return {
+      success: true,
+    };
+  })
+
   // ============ Notion ============
 
   .get('/notes', async ({ query }) => {
@@ -713,6 +959,157 @@ const app = new Elysia()
       embeddingSample: embedding.slice(0, 10),
       providers: embeddingClient.getProviderStats(),
     };
+  })
+
+  // ============ 🔄 Streaming SSE Endpoints (Fase 7) ============
+
+  .get('/ask/stream', async function* ({ query }) {
+    const question = query.question as string;
+    const categoryId = query.categoryId as string | undefined;
+    const categoryName = query.categoryName as string | undefined;
+
+    if (!question || question.trim().length === 0) {
+      yield `data: ${JSON.stringify({ type: 'error', error: 'La pregunta es requerida' })}\n\n`;
+      return;
+    }
+
+    console.log(`\n🔄 [Stream] Chat: "${question.slice(0, 50)}..."`);
+
+    // Emitir inicio
+    yield `data: ${JSON.stringify({ type: 'start', timestamp: Date.now() })}\n\n`;
+
+    try {
+      // Obtener contexto de Notion
+      const result = await askBrainUseCase.getContext({
+        question,
+        categoryId,
+        categoryName,
+        maxSources: 5,
+      });
+
+      // Emitir fuentes
+      yield `data: ${JSON.stringify({
+        type: 'sources',
+        sources: result.sources
+      })}\n\n`;
+
+      // Construir mensajes para la IA
+      const messages = [
+        { role: 'system' as const, content: result.systemPrompt },
+        { role: 'user' as const, content: question }
+      ];
+
+      // Stream de respuesta
+      for await (const chunk of aiClient.streamChat(messages)) {
+        if (chunk.type === 'token' && chunk.content) {
+          yield `data: ${JSON.stringify({ type: 'token', content: chunk.content })}\n\n`;
+        } else if (chunk.type === 'done') {
+          yield `data: ${JSON.stringify({
+            type: 'done',
+            tokensUsed: chunk.tokensUsed,
+            provider: chunk.provider
+          })}\n\n`;
+        } else if (chunk.type === 'error') {
+          yield `data: ${JSON.stringify({ type: 'error', error: chunk.error })}\n\n`;
+        }
+      }
+
+    } catch (error) {
+      yield `data: ${JSON.stringify({ type: 'error', error: String(error) })}\n\n`;
+    }
+  })
+
+  .get('/ask/semantic/stream', async function* ({ query }) {
+    const userId = query.userId as string;
+    const question = query.question as string;
+    const categoryId = query.categoryId as string | undefined;
+    const maxChunks = parseInt(query.maxChunks as string) || 5;
+
+    if (!userId) {
+      yield `data: ${JSON.stringify({ type: 'error', error: 'userId es requerido' })}\n\n`;
+      return;
+    }
+
+    if (!question || question.trim().length === 0) {
+      yield `data: ${JSON.stringify({ type: 'error', error: 'La pregunta es requerida' })}\n\n`;
+      return;
+    }
+
+    console.log(`\n🔄 [Stream Semantic] "${question.slice(0, 50)}..."`);
+
+    // Emitir inicio
+    yield `data: ${JSON.stringify({ type: 'start', timestamp: Date.now() })}\n\n`;
+
+    try {
+      if (!semanticSearch.isReady()) {
+        yield `data: ${JSON.stringify({ type: 'error', error: 'Búsqueda semántica no configurada' })}\n\n`;
+        return;
+      }
+
+      // Resolver categorías
+      let categoryIds: string[] | undefined;
+      if (categoryId) {
+        categoryIds = await supabaseService.getCategoryWithDescendants(categoryId);
+      }
+
+      // Buscar chunks relevantes
+      const chunks = await semanticSearch.searchChunksOnly(userId, question, {
+        categoryIds,
+        maxChunks,
+      });
+
+      // Emitir fuentes (chunks encontrados)
+      yield `data: ${JSON.stringify({
+        type: 'sources',
+        sources: chunks.map(c => ({
+          id: c.pageId,
+          title: c.pageTitle,
+          notionUrl: c.notionUrl,
+          similarity: c.similarity,
+          excerpt: c.content.slice(0, 200)
+        }))
+      })}\n\n`;
+
+      // Construir contexto
+      const context = chunks
+        .map(chunk => `## ${chunk.pageTitle}\n${chunk.content}`)
+        .join('\n\n---\n\n');
+
+      const systemPrompt = `Eres un asistente de conocimiento personal. Responde basándote ÚNICAMENTE en el siguiente contexto de documentos indexados:
+
+${context}
+
+Instrucciones:
+- Responde en español
+- Si la información no está en el contexto, di "No tengo información sobre eso en mis documentos indexados"
+- Cita las fuentes cuando sea relevante
+- Sé conciso pero completo`;
+
+      const messages = [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: question }
+      ];
+
+      // Stream de respuesta
+      for await (const chunk of aiClient.streamChat(messages)) {
+        if (chunk.type === 'token' && chunk.content) {
+          yield `data: ${JSON.stringify({ type: 'token', content: chunk.content })}\n\n`;
+        } else if (chunk.type === 'done') {
+          yield `data: ${JSON.stringify({
+            type: 'done',
+            method: 'semantic',
+            tokensUsed: chunk.tokensUsed,
+            provider: chunk.provider,
+            chunksUsed: chunks.length
+          })}\n\n`;
+        } else if (chunk.type === 'error') {
+          yield `data: ${JSON.stringify({ type: 'error', error: chunk.error })}\n\n`;
+        }
+      }
+
+    } catch (error) {
+      yield `data: ${JSON.stringify({ type: 'error', error: String(error) })}\n\n`;
+    }
   })
 
   // ============ Error Handler ============

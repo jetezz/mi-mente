@@ -409,6 +409,24 @@ export class NotionReader {
       id.substring(20)
     ].join('-');
   }
+
+  /**
+   * Archiva (elimina) una página de Notion
+   */
+  async archivePage(pageId: string): Promise<boolean> {
+    if (!this.client) return false;
+
+    try {
+      await this.client.pages.update({
+        page_id: pageId,
+        archived: true,
+      });
+      return true;
+    } catch (error) {
+      console.error(`Error archivando página ${pageId}:`, error);
+      return false;
+    }
+  }
 }
 
 

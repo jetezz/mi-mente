@@ -13,7 +13,7 @@ Utilizamos un patrón de **Microservicios Híbridos** para maximizar rendimiento
 | **Frontend** | Interfaz | **Astro 5 + React** | SSR para dashboard, Static para landing. UI rápida y SEO-friendly. |
 | **Orquestador** | Cerebro | **Bun + ElysiaJS** | I/O intensivo, Lógica de Negocio, Gestión de IA (Groq/Cerebras), Conexión Notion. |
 | **Worker** | Músculo | **Python + FastAPI** | Tareas CPU-bound: Descarga de video (`yt-dlp`), Audio (`ffmpeg`), Transcripción (`faster-whisper`). |
-| **Base de Datos** | Memoria | **Supabase** | Auth, PostgreSQL (Usuarios, Categorías Jerárquicas). |
+| **Base de Datos** | Memoria | **Supabase** | Auth, PostgreSQL (Usuarios, Categorías Jerárquicas, Vectores). |
 
 ---
 
@@ -163,7 +163,7 @@ networks:
 
 ---
 
-### � Fase 5: RAG (Chat con tu Segundo Cerebro)
+### 💬 Fase 5: RAG (Chat con tu Segundo Cerebro)
 *Objetivo: Preguntar "¿Qué vi sobre arquitectura?" y responder con datos frescos de Notion.*
 
 1.  **Recuperación de Contexto (Live)**:
@@ -176,48 +176,6 @@ networks:
         *   Limpiar y concatenar texto.
         *   Enviar como "Contexto" al LLM (Groq/Cerebras) junto con la pregunta.
         *   *Nota: Se aprovecha la gran ventana de contexto de los modelos actuales (Llama 3, etc) para evitar bases de datos vectoriales complejas al inicio.*
-
----
-
-## 4. Guía de Comandos Rápidos
-
-**Setup Inicial:**
-```bash
-# Crear estructura
-mkdir -p apps/web apps/api-bun apps/worker-py
-
-# Python Worker Deps
-# apps/worker-py/requirements.txt
-fastapi
-uvicorn
-yt-dlp
-faster-whisper
-instaloader
-torch
-
-# Bun Deps
-cd apps/api-bun
-bun add elysia @notionhq/client @supabase/supabase-js
-
-# Levantar Todo
-docker-compose up --build
-docker-compose down && docker-compose up --build
-docker-compose restart
-
-docker builder prune -f && \
-docker-compose build --no-cache web && \
-docker-compose up --build
-
-docker-compose logs -f
-
-# para resetear variables de entorno
-docker-compose down && docker-compose up -d
-```
-
-**Referencias y Recursos:**
-*   **Video Midudev:** Implementación de rotación de claves API para IA gratuita.
-*   **Faster-Whisper:** [GitHub](https://github.com/SYSTRAN/faster-whisper)
-*   **Astro + Supabase:** Guías oficiales de integración SSR.
 
 ---
 
@@ -504,3 +462,362 @@ Si el usuario pide: "Muéstrame el documento completo"
 - ✅ Reduce costos de API
 - ✅ Mejora precisión de recuperación
 - ✅ Evita dependencias innecesarias de Notion en tiempo real
+
+---
+
+## 🚀 Fase 7: Streaming de Respuestas IA (Yield)
+
+> **Objetivo:** Las respuestas de la IA se muestran de forma progresiva en tiempo real (como ChatGPT), mejorando la experiencia de usuario.
+
+### 7.1 Arquitectura de Streaming
+
+**Tecnología:** Server-Sent Events (SSE) para comunicación unidireccional servidor→cliente.
+
+```
+Usuario pregunta → API recibe → LLM genera (stream) → SSE → UI actualiza token-a-token
+```
+
+### 7.2 Cambios en el Backend (api-bun)
+
+#### A. Cliente de IA con Streaming
+```typescript
+// Nuevo método en ai-client.ts
+async *streamChat(systemPrompt: string, userMessage: string): AsyncGenerator<string> {
+  const response = await groq.chat.completions.create({
+    model: "llama-3.3-70b-versatile",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage }
+    ],
+    stream: true
+  });
+
+  for await (const chunk of response) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) yield content;
+  }
+}
+```
+
+#### B. Endpoint SSE
+```typescript
+.get('/ask/stream', async function* ({ query }) {
+  const { question, categoryId, userId } = query;
+  
+  // Headers para SSE
+  yield { data: JSON.stringify({ type: 'start' }) };
+  
+  // Buscar contexto
+  const chunks = await semanticSearch.search(userId, question);
+  yield { data: JSON.stringify({ type: 'context', sources: chunks }) };
+  
+  // Stream de respuesta
+  for await (const token of aiClient.streamChat(context, question)) {
+    yield { data: JSON.stringify({ type: 'token', content: token }) };
+  }
+  
+  yield { data: JSON.stringify({ type: 'end' }) };
+})
+```
+
+### 7.3 Cambios en el Frontend
+
+#### A. Hook de Streaming
+```typescript
+function useStreamingChat() {
+  const [tokens, setTokens] = useState<string[]>([]);
+  
+  const askWithStream = async (question: string) => {
+    const eventSource = new EventSource(`/ask/stream?question=${encodeURIComponent(question)}`);
+    
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'token') {
+        setTokens(prev => [...prev, data.content]);
+      }
+    };
+  };
+  
+  return { tokens: tokens.join(''), askWithStream };
+}
+```
+
+### 7.4 Aplicación en Componentes
+
+- **ChatInterface.tsx**: Mostrar respuesta progresiva con cursor parpadeante
+- **Dashboard.tsx**: Mostrar resumen generándose en tiempo real durante el procesamiento
+
+---
+
+## 📝 Fase 8: Nuevo Flujo de Subida a Notion (Control de Usuario)
+
+> **Objetivo:** El usuario tiene control total sobre el contenido antes de guardarlo en Notion, incluyendo edición, etiquetas manuales e indexación opcional.
+
+### 8.1 Nuevo Flujo de Proceso
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                    FLUJO DE SUBIDA MEJORADO                    │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  1. INPUT                                                      │
+│     ├─► URL de YouTube/Instagram                               │
+│     └─► Prompt personalizado para la IA (NUEVO, opcional)      │
+│         "Céntrate en los puntos técnicos, ignora bromas..."    │
+│                                                                │
+│  2. PROCESAMIENTO (igual que antes)                            │
+│     URL → Descarga → Transcripción → IA genera resumen         │
+│     ⚠️ Si hay prompt personalizado, se añade al system prompt  │
+│                                                                │
+│  3. PREVIEW (NUEVO)                                            │
+│     ├─► Mostrar resultado en Markdown renderizado              │
+│     ├─► Editor de contenido WYSIWYG/Markdown                   │
+│     └─► El usuario puede modificar todo                        │
+│                                                                │
+│  4. ETIQUETAS (NUEVO - Manual)                                 │
+│     ├─► Selector de etiquetas existentes (desde Supabase)      │
+│     ├─► Opción de crear nuevas etiquetas                       │
+│     └─► La IA NO genera etiquetas, solo el usuario             │
+│                                                                │
+│  5. GUARDAR EN NOTION                                          │
+│     └─► Contenido final (con ediciones) → Notion               │
+│                                                                │
+│  6. MODAL POST-GUARDADO (NUEVO)                                │
+│     ├─► "¿Quieres indexar este contenido para búsqueda?"       │
+│     ├─► [Sí, indexar] → Llama a /index/page/:id                │
+│     └─► [No, omitir] → Cierra modal                            │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 8.2 Componentes Nuevos Necesarios
+
+#### A. `PromptInput.tsx`
+Input de texto para instrucciones personalizadas a la IA.
+
+```typescript
+interface PromptInputProps {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}
+```
+
+#### B. `MarkdownPreview.tsx`
+Visualizador de Markdown con soporte para edición.
+
+```typescript
+interface MarkdownPreviewProps {
+  content: string;
+  editable?: boolean;
+  onChange?: (content: string) => void;
+}
+```
+
+#### C. `TagSelector.tsx`
+Selector múltiple de etiquetas con creación inline.
+
+```typescript
+interface TagSelectorProps {
+  availableTags: Tag[];
+  selectedTags: Tag[];
+  onTagsChange: (tags: Tag[]) => void;
+  onCreateTag: (name: string) => Promise<Tag>;
+}
+```
+
+#### D. `IndexingModal.tsx`
+Modal de confirmación post-guardado.
+
+```typescript
+interface IndexingModalProps {
+  isOpen: boolean;
+  notionPageId: string;
+  onIndex: () => Promise<void>;
+  onSkip: () => void;
+}
+```
+
+### 8.3 Cambios en el Backend
+
+#### A. Nuevo endpoint `/process/preview`
+Procesa URL pero NO guarda en Notion. Devuelve el contenido para preview.
+
+```typescript
+.post('/process/preview', async ({ body }) => {
+  const { url, customPrompt } = body;
+  
+  // Descargar, transcribir, generar con IA
+  const result = await processUrlUseCase.executePreview(url, customPrompt);
+  
+  return {
+    success: true,
+    preview: {
+      title: result.title,
+      content: result.markdownContent, // Contenido markdown raw
+      keyPoints: result.keyPoints,
+      sentiment: result.sentiment,
+    }
+  };
+})
+```
+
+#### B. Modificar `/process` para aceptar contenido editado
+```typescript
+.post('/process/save', async ({ body }) => {
+  const { 
+    url, 
+    title, 
+    content,      // Markdown editado por el usuario
+    tags,         // Tags seleccionados manualmente
+    saveToNotion 
+  } = body;
+  
+  // Guardar en Notion con el contenido del usuario
+  const notionPage = await notionClient.createPageFromMarkdown({
+    title,
+    content,
+    tags,
+    url
+  });
+  
+  return { success: true, notionPageId: notionPage.id };
+})
+```
+
+### 8.4 Tabla de Etiquetas en Supabase
+
+```sql
+CREATE TABLE tags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#8B5CF6', -- Color hexadecimal
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, name)
+);
+
+-- Relación N:N con páginas
+CREATE TABLE page_tags (
+  page_id UUID REFERENCES notion_pages(id) ON DELETE CASCADE,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (page_id, tag_id)
+);
+```
+
+---
+
+## 🎨 Fase 9: Unificación de Estilos y Componentes UI
+
+> **Objetivo:** Crear un sistema de diseño consistente con componentes reutilizables para todas las páginas principales.
+
+### 9.1 Análisis de Inconsistencias Actuales
+
+| Página | max-width | Layout Grid | Sidebar |
+|--------|-----------|-------------|---------|
+| `/dashboard` | `max-w-4xl` | 3/1 | Status + Tips |
+| `/chat` | `max-w-5xl` | 3/1 | Status + Cómo funciona |
+| `/indexing` | `max-w-6xl` | 3/1 | Status + Arquitectura |
+
+### 9.2 Nuevo Sistema de Componentes
+
+#### A. `PageLayout.astro`
+Layout reutilizable para todas las páginas de la app.
+
+```astro
+---
+interface Props {
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  maxWidth?: 'md' | 'lg' | 'xl' | '2xl';
+}
+---
+
+<Layout title={title}>
+  <Header />
+  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div class={`mx-auto ${maxWidthClass}`}>
+      <!-- Page Header -->
+      <PageHeader title={title} subtitle={subtitle} badge={badge} />
+      
+      <!-- Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <slot name="main" /> <!-- 3 cols -->
+        <slot name="sidebar" /> <!-- 1 col -->
+      </div>
+    </div>
+  </main>
+</Layout>
+```
+
+#### B. `SidebarCard.tsx`
+Card reutilizable para sidebar.
+
+```typescript
+interface SidebarCardProps {
+  icon: string;
+  title: string;
+  children: React.ReactNode;
+}
+```
+
+#### C. `QuickActions.tsx`
+Navegación rápida reutilizable.
+
+```typescript
+interface QuickAction {
+  icon: string;
+  label: string;
+  href: string;
+}
+```
+
+### 9.3 Estilos Unificados
+
+- **max-width**: Todas las páginas usan `max-w-5xl`
+- **Grid**: `lg:grid-cols-4` con main `lg:col-span-3`
+- **Spacing**: `gap-8` consistente
+- **Cards**: Usar clase `.card` de global.css
+
+---
+
+## 4. Guía de Comandos Rápidos
+
+**Setup Inicial:**
+```bash
+# Crear estructura
+mkdir -p apps/web apps/api-bun apps/worker-py
+
+# Python Worker Deps
+# apps/worker-py/requirements.txt
+fastapi
+uvicorn
+yt-dlp
+faster-whisper
+instaloader
+torch
+
+# Bun Deps
+cd apps/api-bun
+bun add elysia @notionhq/client @supabase/supabase-js
+
+# Levantar Todo
+docker-compose up --build
+docker-compose down && docker-compose up --build
+docker-compose restart
+
+docker builder prune -f && \
+docker-compose build --no-cache web && \
+docker-compose up --build
+
+docker-compose logs -f
+
+# para resetear variables de entorno
+docker-compose down && docker-compose up -d
+```
+
+**Referencias y Recursos:**
+*   **Video Midudev:** Implementación de rotación de claves API para IA gratuita.
+*   **Faster-Whisper:** [GitHub](https://github.com/SYSTRAN/faster-whisper)
+*   **Astro + Supabase:** Guías oficiales de integración SSR.

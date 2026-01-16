@@ -13,9 +13,12 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 | **Fase 1** | Infraestructura & Docker | ✅ 100% |
 | **Fase 2** | Worker Python (Los Oídos) | 🟡 60% |
 | **Fase 3** | Orquestador Bun (El Cerebro) | 🟡 80% |
-| **Fase 4** | Frontend Astro (La Cara) + Auth | 🟡 90% |
+| **Fase 4** | Frontend Astro (La Cara) + Auth | 🟡 85% |
 | **Fase 5** | Chat con Notion (La Memoria) | ✅ 100% |
 | **Fase 6** | Motor Semántico Vectorial (El Cerebro 2.0) | 🟢 90% |
+| **Fase 7** | Streaming de Respuestas IA (Yield) | 🟡 70% |
+| **Fase 8** | Nuevo Flujo de Subida a Notion | 🟢 95% |
+| **Fase 9** | Unificación de Estilos UI | ✅ 100% |
 
 ---
 
@@ -90,7 +93,7 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 
 ---
 
-### � Fase 3: Orquestador Bun - El Cerebro (Lógica de IA)
+### 🧠 Fase 3: Orquestador Bun - El Cerebro (Lógica de IA)
 > **Objetivo:** Lógica de IA económica y conexión a Notion.
 
 - [x] **3.1 Estructura Clean Architecture**
@@ -133,7 +136,7 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 
 ---
 
-### � Fase 4: Frontend Astro - La Cara (Interfaz de Usuario)
+### 🎨 Fase 4: Frontend Astro - La Cara (Interfaz de Usuario)
 > **Objetivo:** UX simple, directa y atractiva.
 
 - [x] **4.1 Configuración Base**
@@ -175,6 +178,11 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [x] 4.6.4 Crear componente `AuthForm` ✅ login/registro
   - [ ] 4.6.5 Crear componente `Modal` 
   - [ ] 4.6.6 Crear componente `Toast` para notificaciones
+
+- [ ] **4.7 Navegación Mejorada** ⬅️ NUEVO
+  - [ ] 4.7.1 Añadir enlace a `/indexing` en el Header
+  - [ ] 4.7.2 Menú móvil con todas las opciones
+  - [ ] 4.7.3 Breadcrumbs en páginas internas
 
 ---
 
@@ -274,6 +282,128 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [ ] 6.8.1 Implementar cron job para re-indexación periódica (cada 6h)
   - [ ] 6.8.2 (Opcional) Configurar webhook de Notion para indexación en tiempo real
   - [ ] 6.8.3 Sistema de notificaciones cuando hay errores de indexación
+
+---
+
+### ⚡ Fase 7: Streaming de Respuestas IA (Yield) ⬅️ EN PROGRESO
+> **Objetivo:** Mostrar respuestas de IA de forma progresiva (token a token) para mejor UX.
+
+- [x] **7.1 Backend - Cliente IA con Streaming**
+  - [x] 7.1.1 Crear método `streamChat()` en `ai-client.ts` usando `AsyncGenerator`
+  - [x] 7.1.2 Implementar soporte streaming para Groq API
+  - [x] 7.1.3 Implementar soporte streaming para Cerebras API
+  - [x] 7.1.4 Crear método `streamSummarize()` para resúmenes progresivos
+
+- [x] **7.2 Backend - Endpoints SSE**
+  - [x] 7.2.1 Crear `GET /ask/stream` — Chat con streaming SSE
+  - [x] 7.2.2 Crear `GET /ask/semantic/stream` — Chat semántico con streaming SSE
+  - [x] 7.2.3 Configurar headers SSE correctos (`text/event-stream`)
+  - [x] 7.2.4 Implementar eventos: `start`, `token`, `sources`, `done`, `error`
+
+- [x] **7.3 Frontend - Hook de Streaming**
+  - [x] 7.3.1 Crear hook `useStreamingChat()` con fetch + ReadableStream
+  - [ ] 7.3.2 Implementar reconexión automática en caso de error
+  - [ ] 7.3.3 Crear hook `useStreamingProcess()` para Dashboard
+
+- [ ] **7.4 Frontend - UI de Streaming**
+  - [ ] 7.4.1 Modificar `ChatInterface.tsx` para mostrar tokens progresivos
+  - [ ] 7.4.2 Añadir cursor parpadeante durante generación
+  - [ ] 7.4.3 Modificar `Dashboard.tsx` para mostrar resumen generándose
+  - [ ] 7.4.4 Indicador visual de "IA escribiendo..."
+
+---
+
+### 📝 Fase 8: Nuevo Flujo de Subida a Notion ⬅️ EN PROGRESO
+> **Objetivo:** Control total del usuario sobre el contenido antes de guardar, con edición, etiquetas manuales e indexación opcional.
+
+- [x] **8.1 Input con Prompt Personalizado**
+  - [x] 8.1.1 Crear componente `PromptInput.tsx` para instrucciones a la IA
+  - [x] 8.1.2 Añadir textarea debajo del input de URL en Dashboard
+  - [x] 8.1.3 Placeholder con ejemplos: "Céntrate en...", "Ignora...", "Resalta..."
+  - [x] 8.1.4 Guardar prompt en state del componente
+
+- [x] **8.2 Modificar Backend para Prompt Personalizado**
+  - [x] 8.2.1 Actualizar `POST /process/preview` para aceptar `customPrompt`
+  - [x] 8.2.2 Modificar `ai-client.ts` → `streamSummarize()` para incluir prompt extra
+  - [x] 8.2.3 Crear `POST /process/preview` — Procesar sin guardar en Notion
+  - [x] 8.2.4 Devolver resultado en formato editable
+
+- [x] **8.3 Preview y Editor de Contenido**
+  - [x] 8.3.1 Crear componente `MarkdownPreview.tsx` con renderizado
+  - [x] 8.3.2 Implementar modo edición con textarea
+  - [x] 8.3.3 Toggle entre vista preview y vista edición
+  - [ ] 8.3.4 Botón "Restaurar original" para deshacer cambios
+
+- [x] **8.4 Sistema de Etiquetas Manual**
+  - [x] 8.4.1 Crear tabla `tags` en Supabase (id, user_id, name, color)
+  - [x] 8.4.2 Crear tabla `page_tags` para relación N:N
+  - [x] 8.4.3 Endpoints CRUD: `GET/POST/DELETE /tags`
+  - [x] 8.4.4 Crear componente `TagSelector.tsx` con autocompletado
+  - [x] 8.4.5 Opción de crear etiqueta nueva inline
+  - [x] 8.4.6 Eliminar generación automática de tags por IA
+
+- [x] **8.5 Guardar con Contenido Editado**
+  - [x] 8.5.1 Crear endpoint `POST /process/save` — Guardar con ediciones
+  - [x] 8.5.2 Aceptar: `{ url, title, content, tags }` del usuario
+  - [x] 8.5.3 Crear método `createPageFromMarkdown()` en `notion-client.ts`
+  - [x] 8.5.4 Convertir Markdown del usuario a bloques de Notion
+  - [x] 8.5.5 Asignar tags como multi-select en Notion
+
+- [x] **8.6 Modal de Indexación Post-Guardado**
+  - [x] 8.6.1 Crear componente `IndexingModal.tsx`
+  - [x] 8.6.2 Mostrar modal después de guardar en Notion exitosamente
+  - [x] 8.6.3 Texto: "¿Quieres añadir esto a tu búsqueda semántica?"
+  - [x] 8.6.4 Botón "Sí, indexar" → llama `POST /index/page/:id`
+  - [x] 8.6.5 Botón "No, omitir" → cierra modal
+  - [x] 8.6.6 Mostrar progreso de indexación en el modal
+
+- [x] **8.7 Refactorizar Dashboard.tsx**
+  - [x] 8.7.1 Separar en pasos: Input → Processing → Preview → Save (EnhancedDashboard.tsx)
+  - [x] 8.7.2 Nuevo estado: `'idle' | 'processing' | 'preview' | 'saving' | 'indexing' | 'done'`
+  - [x] 8.7.3 Añadir navegación entre pasos (Stepper)
+  - [x] 8.7.4 Crear ContentEditor.tsx para flujo multi-paso
+
+---
+
+### 🎨 Fase 9: Unificación de Estilos y Componentes UI ⬅️ EN PROGRESO
+> **Objetivo:** Sistema de diseño consistente con componentes reutilizables.
+
+- [ ] **9.1 Análisis y Documentación**
+  - [ ] 9.1.1 Documentar inconsistencias actuales entre páginas
+  - [ ] 9.1.2 Definir estándares: max-width, spacing, grid layout
+  - [ ] 9.1.3 Crear guía de estilos en `/docs/styles.md`
+
+- [x] **9.2 Componente PageLayout Reutilizable**
+  - [x] 9.2.1 Crear `AppLayout.astro` con slots (main, sidebar)
+  - [x] 9.2.2 Props: `title`, `maxWidth`, incluye Header
+  - [x] 9.2.3 StatusIndicator automático en sidebar
+  - [x] 9.2.4 Grid responsive: 1 col mobile, 4 cols desktop (3+1)
+
+- [x] **9.3 Componentes de Sidebar Reutilizables**
+  - [x] 9.3.1 Crear `SidebarCard.tsx` — Card genérica de sidebar
+  - [x] 9.3.2 Crear `QuickActions.tsx` — Navegación rápida
+  - [x] 9.3.3 Crear `HowItWorksCard.tsx` — Pasos numerados
+  - [x] 9.3.4 Crear `TipsCard.tsx` — Lista de tips con bullets
+
+- [x] **9.4 Migrar Páginas al Nuevo Layout**
+  - [x] 9.4.1 Migrar `/dashboard` a `AppLayout`
+  - [x] 9.4.2 Migrar `/chat` a `AppLayout`
+  - [x] 9.4.3 Migrar `/indexing` a `AppLayout`
+  - [x] 9.4.4 Migrar `/categories` a `AppLayout`
+
+- [x] **9.5 Navegación Header Mejorada**
+  - [x] 9.5.1 Añadir enlace a `/indexing` en Header.astro
+  - [x] 9.5.2 Crear menú hamburguesa para móvil
+  - [x] 9.5.3 Destacar página activa en navegación
+  - [x] 9.5.4 Añadir iconos consistentes a todos los enlaces
+
+- [x] **9.6 Componentes UI Faltantes**
+  - [x] 9.6.1 Crear componente `Modal.tsx` reutilizable
+  - [x] 9.6.2 Crear componente `Toast.tsx` para notificaciones
+  - [x] 9.6.3 Crear componente `Stepper.tsx` para flujos multi-paso
+  - [x] 9.6.4 Crear componente `EmptyState.tsx` para listas vacías
+  - [x] 9.6.5 Crear componente `PageHeader.tsx` para títulos de página
+  - [x] 9.6.6 Crear barrel export `ui/index.ts` para componentes
 
 ---
 

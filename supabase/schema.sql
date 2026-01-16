@@ -329,6 +329,88 @@ CREATE POLICY "Users can delete own chunks" ON notion_page_chunks
   );
 
 -- ============================================================
+-- FASE 8: SISTEMA DE ETIQUETAS MANUAL
+-- ============================================================
+
+-- ============ TABLA TAGS (Etiquetas de Usuario) ============
+-- Etiquetas personalizadas creadas por el usuario para organizar contenido
+
+CREATE TABLE IF NOT EXISTS tags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name VARCHAR(50) NOT NULL,
+  color VARCHAR(7) DEFAULT '#8B5CF6', -- Color hexadecimal
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  
+  -- Evitar duplicados por usuario+nombre
+  UNIQUE(user_id, name)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_tags_user ON tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+
+-- ============ TABLA PAGE_TAGS (Relación N:N) ============
+-- Relaciona páginas de Notion con etiquetas
+
+CREATE TABLE IF NOT EXISTS page_tags (
+  page_id UUID REFERENCES notion_pages(id) ON DELETE CASCADE,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  PRIMARY KEY (page_id, tag_id)
+);
+
+-- Índices
+CREATE INDEX IF NOT EXISTS idx_page_tags_page ON page_tags(page_id);
+CREATE INDEX IF NOT EXISTS idx_page_tags_tag ON page_tags(tag_id);
+
+-- ============ POLÍTICAS RLS PARA TAGS ============
+
+ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
+ALTER TABLE page_tags ENABLE ROW LEVEL SECURITY;
+
+-- Tags
+CREATE POLICY "Users can view own tags" ON tags
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own tags" ON tags
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own tags" ON tags
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own tags" ON tags
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Page Tags (heredan seguridad de tags)
+CREATE POLICY "Users can view own page_tags" ON page_tags
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM tags 
+      WHERE tags.id = page_tags.tag_id 
+      AND tags.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can insert own page_tags" ON page_tags
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM tags 
+      WHERE tags.id = page_tags.tag_id 
+      AND tags.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete own page_tags" ON page_tags
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM tags 
+      WHERE tags.id = page_tags.tag_id 
+      AND tags.user_id = auth.uid()
+    )
+  );
+
+-- ============================================================
 -- INSTRUCCIONES POST-INSTALACIÓN
 -- ============================================================
 -- 

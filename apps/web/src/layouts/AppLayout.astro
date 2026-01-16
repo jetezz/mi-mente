@@ -1,0 +1,47 @@
+---
+/**
+ * AppLayout - Layout reutilizable para páginas de la aplicación
+ * Incluye Header, grid responsive y slots para main y sidebar
+ */
+import Layout from './Layout.astro';
+import Header from '../components/Header.astro';
+import { StatusIndicator } from '../components/StatusIndicator';
+
+export interface Props {
+  title: string;
+  description?: string;
+  showStatusIndicator?: boolean;
+}
+
+const { 
+  title, 
+  description = '', 
+  showStatusIndicator = true 
+} = Astro.props;
+---
+
+<Layout title={title} description={description}>
+  <Header showDashboardLink={true} />
+  
+  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-5xl mx-auto">
+      <!-- Page Header Slot -->
+      <slot name="header" />
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- Main content: 3 cols -->
+        <div class="lg:col-span-3">
+          <slot name="main" />
+          <!-- Default slot también va al main -->
+          <slot />
+        </div>
+
+        <!-- Sidebar: 1 col -->
+        <div class="space-y-6">
+          {showStatusIndicator && <StatusIndicator client:load />}
+          <slot name="sidebar" />
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>

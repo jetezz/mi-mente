@@ -24,6 +24,7 @@ interface IndexedPage {
 interface IndexingResult {
   success: boolean;
   pagesIndexed: number;
+  pagesDeleted: number;
   chunksCreated: number;
   errors: string[];
   duration: number;
@@ -84,6 +85,7 @@ export class NotionIndexer {
     const startTime = Date.now();
     const errors: string[] = [];
     let pagesIndexed = 0;
+    let pagesDeleted = 0;
     let chunksCreated = 0;
 
     console.log('\n📥 Iniciando indexación completa de Notion...');
@@ -92,6 +94,7 @@ export class NotionIndexer {
       return {
         success: false,
         pagesIndexed: 0,
+        pagesDeleted: 0,
         chunksCreated: 0,
         errors: ['El indexador no está configurado correctamente'],
         duration: 0,
@@ -114,8 +117,12 @@ export class NotionIndexer {
 
         for (const result of results) {
           if (result.status === 'fulfilled') {
-            pagesIndexed++;
-            chunksCreated += result.value.chunksCount;
+            if (result.value.deleted) {
+              pagesDeleted++;
+            } else {
+              pagesIndexed++;
+              chunksCreated += result.value.chunksCount;
+            }
           } else {
             errors.push(result.reason?.message || 'Error desconocido');
           }
@@ -123,11 +130,12 @@ export class NotionIndexer {
       }
 
       const duration = Date.now() - startTime;
-      console.log(`\n✅ Indexación completada: ${pagesIndexed} páginas, ${chunksCreated} chunks en ${duration}ms`);
+      console.log(`\n✅ Indexación completada: ${pagesIndexed} páginas indexadas, ${pagesDeleted} eliminadas, ${chunksCreated} chunks en ${duration}ms`);
 
       return {
         success: errors.length === 0,
         pagesIndexed,
+        pagesDeleted,
         chunksCreated,
         errors,
         duration,
@@ -137,6 +145,7 @@ export class NotionIndexer {
       return {
         success: false,
         pagesIndexed,
+        pagesDeleted,
         chunksCreated,
         errors: [...errors, String(error)],
         duration: Date.now() - startTime,
@@ -150,7 +159,7 @@ export class NotionIndexer {
   async indexPage(
     userId: string,
     page: { id: string; title: string; content: string; category?: string; lastEdited: string }
-  ): Promise<IndexedPage> {
+  ): Promise<IndexedPage & { deleted?: boolean }> {
     if (!this.supabase) {
       throw new Error('Supabase no configurado');
     }
@@ -162,8 +171,19 @@ export class NotionIndexer {
       const normalizedContent = this.normalizeContent(page.content);
 
       if (normalizedContent.length < 50) {
-        console.log(`   ⚠️ Contenido muy corto, omitiendo: "${page.title}"`);
-        return { id: '', notionPageId: page.id, title: page.title, chunksCount: 0 };
+        console.log(`   🗑️ Contenido muy corto, archivando en Notion y limpiando índice: "${page.title}"`);
+
+        // 1. Archivar en Notion (Eliminar de origen)
+        await notionReader.archivePage(page.id);
+
+        // 2. Limpiar del índice local si existía previamente
+        await this.supabase
+          .from('notion_pages')
+          .delete()
+          .eq('user_id', userId)
+          .eq('notion_page_id', page.id);
+
+        return { id: '', notionPageId: page.id, title: page.title, chunksCount: 0, deleted: true };
       }
 
       // 2. Dividir en chunks
@@ -246,6 +266,7 @@ export class NotionIndexer {
       throw error;
     }
   }
+
 
   /**
    * Indexa una página por su ID de Notion
@@ -562,6 +583,7 @@ export class NotionIndexer {
     const startTime = Date.now();
     const errors: string[] = [];
     let pagesIndexed = 0;
+    let pagesDeleted = 0;
     let chunksCreated = 0;
 
     console.log('\n📥 Iniciando indexación incremental...');
@@ -577,6 +599,7 @@ export class NotionIndexer {
         return {
           success: true,
           pagesIndexed: 0,
+          pagesDeleted: 0,
           chunksCreated: 0,
           errors: [],
           duration: Date.now() - startTime,
@@ -592,8 +615,12 @@ export class NotionIndexer {
         if (page) {
           try {
             const result = await this.indexPage(userId, page);
-            pagesIndexed++;
-            chunksCreated += result.chunksCount;
+            if (result.deleted) {
+              pagesDeleted++;
+            } else {
+              pagesIndexed++;
+              chunksCreated += result.chunksCount;
+            }
           } catch (error) {
             errors.push(`${pageId}: ${String(error)}`);
           }
@@ -608,12 +635,14 @@ export class NotionIndexer {
             .delete()
             .eq('notion_page_id', deletedId)
             .eq('user_id', userId);
+          pagesDeleted++;
         }
       }
 
       return {
         success: errors.length === 0,
         pagesIndexed,
+        pagesDeleted,
         chunksCreated,
         errors,
         duration: Date.now() - startTime,
@@ -623,6 +652,7 @@ export class NotionIndexer {
       return {
         success: false,
         pagesIndexed,
+        pagesDeleted,
         chunksCreated,
         errors: [...errors, String(error)],
         duration: Date.now() - startTime,

@@ -132,6 +132,55 @@ export class AskBrainUseCase {
   }
 
   /**
+   * Obtiene solo el contexto y prompts (usado para streaming)
+   * No ejecuta la IA, solo prepara los datos
+   */
+  async getContext(request: AskRequest): Promise<{
+    sources: Source[];
+    systemPrompt: string;
+    userPrompt: string;
+    contextLength: number;
+  }> {
+    const maxSources = request.maxSources || this.DEFAULT_MAX_SOURCES;
+
+    // Resolver categorías
+    let categoryNames: string[] = [];
+
+    if (request.categoryName) {
+      categoryNames = [request.categoryName];
+    } else if (request.categoryId) {
+      const categoryIds = await supabaseService.getCategoryWithDescendants(request.categoryId);
+      const allCategories = await supabaseService.getAllCategories();
+      categoryNames = allCategories
+        .filter(c => categoryIds.includes(c.id))
+        .map(c => c.name);
+    }
+
+    // Recuperar páginas
+    let pages;
+    if (categoryNames.length > 0) {
+      pages = await notionReader.getPagesByCategories(categoryNames, maxSources);
+    } else {
+      pages = await notionReader.getAllPages(maxSources);
+    }
+
+    const context = this.buildContext(pages);
+    const sources: Source[] = pages.map(p => ({
+      id: p.id,
+      title: p.title,
+      url: p.url,
+      category: p.category,
+    }));
+
+    return {
+      sources,
+      systemPrompt: this.buildSystemPrompt(categoryNames),
+      userPrompt: this.buildUserPrompt(request.question, context),
+      contextLength: context.length,
+    };
+  }
+
+  /**
    * Construye el contexto concatenando el contenido de las páginas
    */
   private buildContext(pages: { title: string; content: string; category?: string }[]): string {

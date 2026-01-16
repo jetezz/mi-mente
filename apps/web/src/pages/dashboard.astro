@@ -1,70 +1,52 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Header from '../components/Header.astro';
-import { StatusIndicator } from '../components/StatusIndicator';
+/**
+ * Dashboard Page - Migrada a AppLayout
+ */
+import AppLayout from '../layouts/AppLayout.astro';
 import { Dashboard } from '../components/Dashboard';
+import { PageHeader } from '../components/ui/PageHeader';
+import { TipsCard, HowItWorksCard } from '../components/ui/SidebarCard';
+import { QuickActions } from '../components/ui/QuickActions';
 ---
 
-<Layout title="Dashboard - Hybrid Brain 🧠" description="Procesa y organiza contenido multimedia con IA">
-  <Header showDashboardLink={false} />
-  
-  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-4xl mx-auto">
-      <!-- Page Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-display font-bold text-dark-100 mb-2">
-          Dashboard
-        </h1>
-        <p class="text-dark-400">
-          Procesa videos de YouTube e Instagram y guárdalos en tu segundo cerebro.
-        </p>
-      </div>
+<AppLayout 
+  title="Dashboard - Hybrid Brain 🧠" 
+  description="Procesa y organiza contenido multimedia con IA"
+>
+  <!-- Page Header -->
+  <Fragment slot="header">
+    <PageHeader
+      title="Dashboard"
+      subtitle="Procesa videos de YouTube e Instagram y guárdalos en tu segundo cerebro."
+      icon="📥"
+      client:load
+    />
+  </Fragment>
 
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <!-- Main content -->
-        <div class="lg:col-span-3">
-          <Dashboard client:load />
-        </div>
+  <!-- Main Content -->
+  <Fragment slot="main">
+    <Dashboard client:load />
+  </Fragment>
 
-        <!-- Sidebar -->
-        <div class="space-y-6">
-          <StatusIndicator client:load />
-          
-          <!-- Quick tips -->
-          <div class="card p-4">
-            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
-              💡 Tips
-            </h3>
-            <ul class="space-y-3 text-sm text-dark-400">
-              <li class="flex items-start gap-2">
-                <span class="text-primary-400">•</span>
-                <span>Los videos más largos tardan más en procesarse</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <span class="text-primary-400">•</span>
-                <span>La transcripción funciona mejor en español e inglés</span>
-              </li>
-              <li class="flex items-start gap-2">
-                <span class="text-primary-400">•</span>
-                <span>Configura tu Notion para organizar mejor las notas</span>
-              </li>
-            </ul>
-          </div>
+  <!-- Sidebar -->
+  <Fragment slot="sidebar">
+    <TipsCard 
+      tips={[
+        "Los videos más largos tardan más en procesarse",
+        "La transcripción funciona mejor en español e inglés",
+        "Configura tu Notion para organizar mejor las notas",
+        "Usa el prompt personalizado para instrucciones específicas"
+      ]}
+      client:load
+    />
 
-          <!-- Recent activity placeholder -->
-          <div class="card p-4">
-            <h3 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">
-              📊 Actividad Reciente
-            </h3>
-            <div class="text-center py-6 text-dark-500">
-              <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              <p class="text-sm">Aún no has procesado ningún video</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </main>
-</Layout>
+    <QuickActions
+      actions={[
+        { icon: "💬", label: "Chat con tu cerebro", href: "/chat" },
+        { icon: "🔮", label: "Indexación semántica", href: "/indexing" },
+        { icon: "📂", label: "Gestionar categorías", href: "/categories" }
+      ]}
+      client:load
+    />
+  </Fragment>
+</AppLayout>

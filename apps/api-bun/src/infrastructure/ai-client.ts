@@ -124,6 +124,136 @@ export class AIClient {
   }
 
   /**
+   * Streaming Chat - Genera respuesta token a token
+   * Usa AsyncGenerator para yield progresivo
+   */
+  async *streamChat(messages: ChatMessage[]): AsyncGenerator<{
+    type: 'token' | 'done' | 'error';
+    content?: string;
+    error?: string;
+    tokensUsed?: number;
+    provider?: string;
+  }> {
+    const provider = this.getNextProvider();
+
+    if (!provider) {
+      yield { type: 'error', error: 'No hay proveedores de IA disponibles' };
+      return;
+    }
+
+    try {
+      console.log(`🔄 [Stream] Iniciando con ${provider.name}`);
+
+      const response = await fetch(`${provider.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${provider.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: provider.model,
+          messages,
+          temperature: 0.7,
+          max_tokens: 2000,
+          stream: true, // STREAMING HABILITADO
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        yield { type: 'error', error: `HTTP ${response.status}: ${JSON.stringify(errorData)}` };
+        return;
+      }
+
+      if (!response.body) {
+        yield { type: 'error', error: 'No response body' };
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let totalTokens = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Procesar líneas SSE
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Mantener línea incompleta en buffer
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+
+          if (!trimmed || trimmed === 'data: [DONE]') {
+            continue;
+          }
+
+          if (trimmed.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(trimmed.slice(6));
+              const content = json.choices?.[0]?.delta?.content;
+
+              if (content) {
+                totalTokens++;
+                yield { type: 'token', content };
+              }
+            } catch {
+              // Ignorar líneas JSON inválidas
+            }
+          }
+        }
+      }
+
+      console.log(`✅ [Stream] Completado: ~${totalTokens} tokens`);
+      yield { type: 'done', tokensUsed: totalTokens, provider: provider.name };
+
+    } catch (error) {
+      console.error(`❌ [Stream] Error con ${provider.name}:`, error);
+      yield { type: 'error', error: (error as Error).message };
+    }
+  }
+
+  /**
+   * Streaming Summarize - Genera resumen con streaming
+   */
+  async *streamSummarize(text: string, customPrompt?: string): AsyncGenerator<{
+    type: 'token' | 'done' | 'error';
+    content?: string;
+    error?: string;
+    tokensUsed?: number;
+    provider?: string;
+  }> {
+    const systemContent = customPrompt
+      ? `Eres un experto en crear resúmenes concisos y útiles.
+${customPrompt}
+
+El resumen debe ser en español y capturar la esencia del contenido.`
+      : `Eres un experto en crear resúmenes concisos y útiles.
+Tu tarea es resumir el siguiente contenido manteniendo los puntos más importantes.
+El resumen debe ser:
+- En español
+- Entre 150-300 palabras
+- Capturar la esencia del contenido
+- Usar un tono profesional pero accesible`;
+
+    const messages: ChatMessage[] = [
+      { role: 'system', content: systemContent },
+      { role: 'user', content: `Resume el siguiente contenido:\n\n${text.slice(0, 10000)}` }
+    ];
+
+    for await (const chunk of this.streamChat(messages)) {
+      yield chunk;
+    }
+  }
+
+  /**
    * Realiza una petición de chat a la IA
    */
   async chat(messages: ChatMessage[]): Promise<AIResponse> {
