@@ -23,10 +23,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const loadSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setUser(session?.user ?? null);
+
+        if (session) {
+          // Verificar si el usuario existe realmente en la DB (para evitar fantasmas)
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+          if (userError || !user) {
+            console.warn('Ghost user detected or session invalid, signing out...');
+            await supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+          } else {
+            setSession(session);
+            setUser(user);
+          }
+        } else {
+          setSession(null);
+          setUser(null);
+        }
       } catch (error) {
         console.error('Error loading session:', error);
+        // En caso de error crítico, limpiar estado por seguridad
+        setSession(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -77,11 +96,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setLoading(true);
     try {
+      // Intentamos cerrar sesión en Supabase
       await supabase.auth.signOut();
+    } catch (error) {
+      console.error('Logout error from Supabase:', error);
+    } finally {
+      // SIEMPRE limpiamos el estado local pase lo que pase
       setSession(null);
       setUser(null);
-    } finally {
       setLoading(false);
+
+      // Limpiar localStorage manualmente para ser extra seguros
+      if (typeof window !== 'undefined') {
+        const projectRef = import.meta.env.PUBLIC_SUPABASE_URL?.split('.')[0].split('//')[1];
+        if (projectRef) {
+          localStorage.removeItem(`sb-${projectRef}-auth-token`);
+        }
+        // Redirigir al inicio para limpiar cualquier estado persistente en la UI
+        window.location.href = '/';
+      }
     }
   };
 

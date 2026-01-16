@@ -13,9 +13,24 @@ export function UserMenu() {
     const loadUser = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
+
+        if (session) {
+          // Verificar si el usuario existe realmente en la DB
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+          if (userError || !user) {
+            console.warn('Ghost user detected or session invalid');
+            await supabase.auth.signOut();
+            setUser(null);
+          } else {
+            setUser(user);
+          }
+        } else {
+          setUser(null);
+        }
       } catch (error) {
         console.error('Error loading user:', error);
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -43,8 +58,18 @@ export function UserMenu() {
   }, []);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/';
+    try {
+      // Importar helper de signOut que ya es robusto
+      const { signOut } = await import('../lib/supabase');
+      await signOut();
+    } catch (error) {
+      console.error('Error in handleSignOut:', error);
+    } finally {
+      // Forzar redirección y limpieza local
+      setUser(null);
+      setIsOpen(false);
+      window.location.href = '/';
+    }
   };
 
   if (loading) {
