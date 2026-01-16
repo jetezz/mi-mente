@@ -113,7 +113,7 @@ def health_check():
 
 
 @app.post("/transcribe", response_model=TranscribeResponse)
-async def transcribe_endpoint(request: TranscribeRequest):
+def transcribe_endpoint(request: TranscribeRequest):
     """
     Endpoint principal: descarga y transcribe contenido multimedia.
     
@@ -219,7 +219,7 @@ async def transcribe_youtube(request: TranscribeRequest):
 
 
 @app.post("/video/info", response_model=VideoInfoResponse)
-async def get_video_info(request: VideoInfoRequest):
+def get_video_info(request: VideoInfoRequest):
     """
     Obtiene información de un video sin descargarlo.
     Útil para preview antes de procesar.

@@ -640,25 +640,42 @@ interface IndexingModalProps {
 
 ### 8.3 Cambios en el Backend
 
-#### A. Nuevo endpoint `/process/preview`
-Procesa URL pero NO guarda en Notion. Devuelve el contenido para preview.
+### 8.3 Cambios en el Backend
+
+#### A. Nuevo endpoint `/process/stream-preview` (Server-Sent Events)
+Procesa URL, descarga, transcribe y genera resumen mediante streaming.
 
 ```typescript
-.post('/process/preview', async ({ body }) => {
-  const { url, customPrompt } = body;
+// GET /process/stream-preview?url=...
+// Returns SSE events:
+// - type: 'status' (step updates)
+// - type: 'token' (summary generation)
+// - type: 'result' (final data for preview)
+```
+
+#### B. Nuevo endpoint `/process/preview` (Legacy/Optional)
+Reemplazado por streaming para mejor experiencia, pero la lógica de negocio subyacente se mantiene.
+
+#### C. Modificar `/process` para aceptar contenido editado
+```typescript
+.post('/process/save', async ({ body }) => {
+  const { 
+    url, 
+    title, 
+    markdown,     // Contenido Markdown completo del editor (BlockNote)
+    tags,         // Tags seleccionados manualmente
+    saveToNotion 
+  } = body;
   
-  // Descargar, transcribir, generar con IA
-  const result = await processUrlUseCase.executePreview(url, customPrompt);
+  // Guardar en Notion usando el Markdown proporcionado
+  const notionPage = await notionClient.createPageFromMarkdown({
+    title,
+    markdown,
+    tags,
+    sourceUrl: url
+  });
   
-  return {
-    success: true,
-    preview: {
-      title: result.title,
-      content: result.markdownContent, // Contenido markdown raw
-      keyPoints: result.keyPoints,
-      sentiment: result.sentiment,
-    }
-  };
+  return { success: true, notionPageId: notionPage.id };
 })
 ```
 

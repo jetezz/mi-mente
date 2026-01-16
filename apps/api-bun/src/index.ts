@@ -264,68 +264,130 @@ const app = new Elysia()
 
   // ============ 📝 Fase 8: Nuevo Flujo con Preview/Edit/Save ============
 
-  .post('/process/preview', async ({ body }) => {
-    // Procesa el contenido pero NO guarda en Notion
-    // Devuelve el contenido para preview/edición
-    const { url, customPrompt } = body as {
+  .get('/process/stream-preview', ({ query }) => {
+    const { url, customPrompt, userId } = query as {
       url: string;
       customPrompt?: string;
+      userId?: string;
     };
 
-    if (!url) {
-      throw new Error('URL es requerida');
-    }
+    const encoder = new TextEncoder();
 
-    console.log(`\n📥 [Preview] Procesando: ${url}`);
-    if (customPrompt) {
-      console.log(`   📝 Custom prompt: "${customPrompt.slice(0, 50)}..."`);
-    }
+    return new Response(new ReadableStream({
+      async start(controller) {
+        // Helper para enviar eventos SSE de forma segura
+        const send = (data: any) => {
+          try {
+            const message = `data: ${JSON.stringify(data)}\n\n`;
+            controller.enqueue(encoder.encode(message));
+          } catch (e) {
+            // Si el controlador está cerrado (cliente desconectado), lanzamos error para detener flujo
+            console.warn('⚠️ Stream cerrado por el cliente.');
+            throw new Error('STREAM_CLOSED');
+          }
+        };
 
-    // 1. Descargar y transcribir
-    const transcription = await workerClient.transcribe(url);
-
-    // 2. Generar resumen con IA (usando prompt personalizado si existe)
-    let summary: string;
-    if (customPrompt) {
-      // Usar método de summarize con prompt personalizado
-      const messages = [
-        {
-          role: 'system' as const,
-          content: `Eres un experto en crear resúmenes concisos y útiles.
-${customPrompt}
-
-El resumen debe ser en español y capturar la esencia del contenido.`
-        },
-        {
-          role: 'user' as const,
-          content: `Resume el siguiente contenido:\n\n${transcription.text.slice(0, 10000)}`
+        if (!url) {
+          send({ type: 'error', error: 'URL es requerida' });
+          controller.close();
+          return;
         }
-      ];
-      const response = await aiClient.chat(messages);
-      summary = response.content;
-    } else {
-      summary = await aiClient.summarize(transcription.text);
-    }
 
-    // 3. Extraer puntos clave y sentimiento (en paralelo)
-    const [keyPoints, sentiment] = await Promise.all([
-      aiClient.extractKeyPoints(transcription.text),
-      aiClient.analyzeSentiment(transcription.text),
-    ]);
+        console.log(`\n🌊 [Stream] Procesando: ${url}`);
 
-    // 4. NO generamos tags automáticamente - el usuario los elige
+        try {
+          // 1. Downloading / Transcribing
+          console.log('   [Step 1] Iniciando descarga/transcripción...');
+          send({ type: 'status', step: 'downloading', progress: 10 });
 
-    console.log(`   ✅ [Preview] Listo para edición`);
+          // Simular un poco de delay para UX
+          await new Promise(r => setTimeout(r, 500));
+          send({ type: 'status', step: 'transcribing', progress: 30 });
 
-    return {
-      success: true,
-      title: transcription.title || 'Sin título',
-      summary,
-      keyPoints,
-      sentiment,
-      transcription: transcription.text.slice(0, 1000), // Solo muestra para referencia
-      duration: transcription.duration,
-    };
+          // Heartbeat simpler: Send comments to keep connection alive
+          const keepAlive = setInterval(() => {
+            try {
+              controller.enqueue(encoder.encode(': keep-alive\n\n'));
+            } catch (e) {
+              clearInterval(keepAlive);
+            }
+          }, 10000);
+
+          let transcription;
+          try {
+            transcription = await workerClient.transcribe(url);
+          } finally {
+            clearInterval(keepAlive);
+          }
+
+          console.log('   [Step 1] Transcripción completada.');
+          send({
+            type: 'transcription',
+            title: transcription.videoInfo?.title || 'Sin título',
+            text: transcription.text.slice(0, 1000) // Preview parcial
+          });
+
+          // 2. Summarizing (Streaming)
+          console.log('   [Step 2] Generando resumen...');
+          send({ type: 'status', step: 'summarizing', progress: 60 });
+
+          const stream = aiClient.streamSummarize(transcription.text, customPrompt);
+          let fullSummary = '';
+
+          for await (const chunk of stream) {
+            if (chunk.type === 'token' && chunk.content) {
+              fullSummary += chunk.content;
+              send({ type: 'token', content: chunk.content });
+            } else if (chunk.type === 'error') {
+              console.error('Error streaming summary:', chunk.error);
+            }
+          }
+
+          // 3. Analysis (KeyPoints + Sentiment)
+          console.log('   [Step 3] Analizando puntos clave...');
+          send({ type: 'status', step: 'analyzing', progress: 90 });
+
+          const [keyPoints, sentiment] = await Promise.all([
+            aiClient.extractKeyPoints(transcription.text),
+            aiClient.analyzeSentiment(transcription.text),
+          ]);
+
+          // 4. Done
+          console.log('   [Step 4] Todo listo.');
+          send({
+            type: 'result',
+            summary: fullSummary,
+            keyPoints,
+            sentiment,
+            originalUrl: url,
+            title: transcription.videoInfo?.title,
+            transcription: transcription.text
+          });
+
+          send({ type: 'done' });
+          controller.close();
+
+        } catch (error: any) {
+          if (error.message === 'STREAM_CLOSED') {
+            // Salida normal si el cliente cerró
+            return;
+          }
+          console.error('\n❌ Error en stream:', error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          try {
+            // Intentar enviar error si aún es posible
+            send({ type: 'error', error: errorMessage });
+            controller.close();
+          } catch { }
+        }
+      }
+    }), {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      }
+    });
   })
 
   .post('/process/save', async ({ body }) => {

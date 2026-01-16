@@ -1,13 +1,9 @@
-/**
- * ContentEditor Component
- * Editor completo de contenido antes de guardar en Notion
- * Incluye: edición de título, resumen, puntos clave, tags y preview
- */
-
 import { useState, useEffect } from 'react';
-import { MarkdownPreview } from './MarkdownPreview';
 import { TagSelector, type Tag } from './TagSelector';
 import { Stepper } from './ui/Stepper';
+import { BlockNoteView } from "@blocknote/mantine";
+import { useCreateBlockNote } from "@blocknote/react";
+import "@blocknote/mantine/style.css";
 
 export interface ProcessedContent {
   title: string;
@@ -18,6 +14,19 @@ export interface ProcessedContent {
   transcription?: string;
 }
 
+export interface EditedContent {
+  title: string;
+  markdown: string; // Unified content
+  tags: Tag[];
+  originalUrl: string;
+}
+
+// Steps
+const STEPS = [
+  { id: 'edit', label: 'Editar Contenido', icon: '✏️' },
+  { id: 'tags', label: 'Etiquetas y Guardar', icon: '🏷️' },
+];
+
 interface ContentEditorProps {
   content: ProcessedContent;
   availableTags: Tag[];
@@ -25,22 +34,8 @@ interface ContentEditorProps {
   onCancel: () => void;
   onCreateTag: (name: string) => Promise<Tag>;
   isSaving?: boolean;
+  isStreaming?: boolean;
 }
-
-export interface EditedContent {
-  title: string;
-  summary: string;
-  keyPoints: string[];
-  tags: Tag[];
-  originalUrl: string;
-}
-
-const STEPS = [
-  { id: 'review', label: 'Revisar', icon: '📋' },
-  { id: 'edit', label: 'Editar', icon: '✏️' },
-  { id: 'tags', label: 'Etiquetas', icon: '🏷️' },
-  { id: 'confirm', label: 'Confirmar', icon: '✅' },
-];
 
 export function ContentEditor({
   content,
@@ -49,28 +44,51 @@ export function ContentEditor({
   onCancel,
   onCreateTag,
   isSaving = false,
+  isStreaming = false,
 }: ContentEditorProps) {
-  const [currentStep, setCurrentStep] = useState('review');
+  const [currentStep, setCurrentStep] = useState('edit');
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
-  // Estado editado
+  // State
   const [title, setTitle] = useState(content.title);
-  const [summary, setSummary] = useState(content.summary);
-  const [keyPoints, setKeyPoints] = useState<string[]>(content.keyPoints);
   const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
 
-  // Nuevo key point input
-  const [newKeyPoint, setNewKeyPoint] = useState('');
+  // BlockNote Editor
+  const editor = useCreateBlockNote();
+  const [initialLoaded, setInitialLoaded] = useState(false);
 
-  // Sincronizar estado cuando cambia el contenido
+  // Initialize editor content
   useEffect(() => {
-    setTitle(content.title);
-    setSummary(content.summary);
-    setKeyPoints(content.keyPoints);
-  }, [content]);
+    async function loadContent() {
+      if (initialLoaded || isStreaming) return;
+
+      // Construct initial markdown from summary and keypoints
+      const initialMarkdown = `
+${content.summary}
+
+## 💡 Puntos Clave
+
+${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
+      `.trim();
+
+      // Load into editor
+      const blocks = await editor.tryParseMarkdownToBlocks(initialMarkdown);
+      editor.replaceBlocks(editor.document, blocks);
+      setInitialLoaded(true);
+    }
+
+    loadContent();
+  }, [content, editor, initialLoaded, isStreaming]);
+
+  // Update title if content updates (e.g. from streaming finalization)
+  useEffect(() => {
+    if (content.title && content.title !== 'Sin Título') {
+      setTitle(content.title);
+    }
+  }, [content.title]);
 
   const handleStepChange = (stepId: string) => {
-    // Marcar paso actual como completado antes de cambiar
+    if (isStreaming) return;
     if (!completedSteps.includes(currentStep)) {
       setCompletedSteps(prev => [...prev, currentStep]);
     }
@@ -78,58 +96,37 @@ export function ContentEditor({
   };
 
   const goToNextStep = () => {
-    const currentIndex = STEPS.findIndex(s => s.id === currentStep);
-    if (currentIndex < STEPS.length - 1) {
-      handleStepChange(STEPS[currentIndex + 1].id);
-    }
+    handleStepChange('tags');
   };
 
   const goToPrevStep = () => {
-    const currentIndex = STEPS.findIndex(s => s.id === currentStep);
-    if (currentIndex > 0) {
-      setCurrentStep(STEPS[currentIndex - 1].id);
-    }
+    handleStepChange('edit');
   };
 
   const handleSave = async () => {
+    // Export content to markdown
+    const markdown = await editor.blocksToMarkdownLossy(editor.document);
+
     await onSave({
       title,
-      summary,
-      keyPoints,
+      markdown,
       tags: selectedTags,
       originalUrl: content.originalUrl,
     });
   };
 
-  const addKeyPoint = () => {
-    if (newKeyPoint.trim()) {
-      setKeyPoints([...keyPoints, newKeyPoint.trim()]);
-      setNewKeyPoint('');
+  const handleTagToggle = (tag: Tag) => {
+    if (selectedTags.some(t => t.id === tag.id)) {
+      setSelectedTags(selectedTags.filter(t => t.id !== tag.id));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
     }
   };
 
-  const removeKeyPoint = (index: number) => {
-    setKeyPoints(keyPoints.filter((_, i) => i !== index));
-  };
-
-  // Generar markdown del contenido para preview
-  const markdownContent = `# ${title}
-
-${summary}
-
-## Puntos Clave
-
-${keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
-
----
-
-*Fuente: [${content.originalUrl}](${content.originalUrl})*
-`;
-
   return (
-    <div className="card overflow-hidden">
-      {/* Header con stepper */}
-      <div className="p-4 bg-gradient-to-r from-primary-600/20 to-accent-cyan/20 border-b border-dark-800/50">
+    <div className="card overflow-hidden flex flex-col min-h-[600px]">
+      {/* Header */}
+      <div className="p-4 bg-dark-800/50 border-b border-dark-700">
         <Stepper
           steps={STEPS}
           currentStep={currentStep}
@@ -138,51 +135,10 @@ ${keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
         />
       </div>
 
-      {/* Content area */}
-      <div className="p-6">
-        {/* Step 1: Review */}
-        {currentStep === 'review' && (
-          <div className="space-y-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-dark-100 mb-2">
-                  Vista previa del contenido
-                </h2>
-                <p className="text-dark-400 text-sm">
-                  Revisa el resumen generado por la IA antes de continuar
-                </p>
-              </div>
-              <span className={`badge-${content.sentiment === 'positive' ? 'success' : content.sentiment === 'negative' ? 'danger' : 'primary'}`}>
-                {content.sentiment === 'positive' ? '😊 Positivo' : content.sentiment === 'negative' ? '😟 Negativo' : '😐 Neutral'}
-              </span>
-            </div>
-
-            <MarkdownPreview content={markdownContent} editable={false} />
-
-            <div className="flex items-center justify-between pt-4 border-t border-dark-700">
-              <button onClick={onCancel} className="text-dark-400 hover:text-dark-200">
-                Cancelar
-              </button>
-              <button onClick={goToNextStep} className="btn-primary">
-                Continuar a edición →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Edit */}
+      {/* Body */}
+      <div className="flex-1 p-6">
         {currentStep === 'edit' && (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-dark-100 mb-2">
-                Editar contenido
-              </h2>
-              <p className="text-dark-400 text-sm">
-                Modifica el título, resumen y puntos clave según necesites
-              </p>
-            </div>
-
-            {/* Title */}
+          <div className="space-y-4 h-full flex flex-col">
             <div>
               <label className="block text-sm font-medium text-dark-300 mb-2">
                 Título
@@ -190,198 +146,88 @@ ${keyPoints.map((p, i) => `${i + 1}. ${p}`).join('\n')}
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="input"
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                disabled={isStreaming}
+                className="input w-full font-bold text-lg disabled:opacity-50"
+                placeholder="Título del documento..."
               />
             </div>
 
-            {/* Summary */}
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-2">
-                Resumen
-              </label>
-              <textarea
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                rows={6}
-                className="input resize-y"
-              />
-            </div>
-
-            {/* Key Points */}
-            <div>
-              <label className="block text-sm font-medium text-dark-300 mb-2">
-                Puntos Clave
-              </label>
-              <div className="space-y-2">
-                {keyPoints.map((point, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-primary-500/20 text-primary-400 flex items-center justify-center text-xs font-bold">
-                      {index + 1}
-                    </span>
-                    <input
-                      type="text"
-                      value={point}
-                      onChange={(e) => {
-                        const newPoints = [...keyPoints];
-                        newPoints[index] = e.target.value;
-                        setKeyPoints(newPoints);
-                      }}
-                      className="input flex-1"
-                    />
-                    <button
-                      onClick={() => removeKeyPoint(index)}
-                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-
-                {/* Add new key point */}
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-dark-700 text-dark-400 flex items-center justify-center text-xs">
-                    +
-                  </span>
-                  <input
-                    type="text"
-                    value={newKeyPoint}
-                    onChange={(e) => setNewKeyPoint(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addKeyPoint()}
-                    placeholder="Añadir punto clave..."
-                    className="input flex-1"
-                  />
-                  <button
-                    onClick={addKeyPoint}
-                    disabled={!newKeyPoint.trim()}
-                    className="btn-secondary text-sm"
-                  >
-                    Añadir
-                  </button>
+            <div className="flex-1 border border-dark-700 rounded-xl overflow-hidden bg-white/5 min-h-[400px]">
+              {isStreaming ? (
+                <div className="h-full p-12 overflow-y-auto font-sans text-dark-200 whitespace-pre-wrap">
+                  {content.summary}
+                  <span className="inline-block w-2 h-5 bg-primary-400 ml-1 animate-pulse align-middle" />
                 </div>
-              </div>
+              ) : (
+                <BlockNoteView editor={editor} theme="dark" className="h-full py-4" />
+              )}
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-dark-700">
-              <button onClick={goToPrevStep} className="text-dark-400 hover:text-dark-200">
-                ← Atrás
+            <div className="flex justify-between pt-4">
+              <button
+                onClick={onCancel}
+                className="btn-ghost text-sm"
+              >
+                Cancelar
               </button>
-              <button onClick={goToNextStep} className="btn-primary">
-                Continuar a etiquetas →
+              <button
+                onClick={goToNextStep}
+                disabled={isStreaming}
+                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isStreaming ? 'Generando...' : 'Continuar →'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Tags */}
         {currentStep === 'tags' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-dark-100 mb-2">
-                Etiquetas
-              </h2>
-              <p className="text-dark-400 text-sm">
-                Selecciona o crea etiquetas para organizar este contenido
-              </p>
+              <h3 className="text-lg font-medium text-dark-100">Etiquetas</h3>
+              <p className="text-sm text-dark-400">Organiza tu contenido antes de guardarlo.</p>
             </div>
 
-            <TagSelector
-              availableTags={availableTags}
-              selectedTags={selectedTags}
-              onTagsChange={setSelectedTags}
-              onCreateTag={onCreateTag}
-              placeholder="Buscar o crear etiqueta..."
-            />
-
-            <div className="bg-dark-800/50 rounded-xl p-4">
-              <p className="text-sm text-dark-400">
-                💡 <strong>Tip:</strong> Las etiquetas te ayudan a encontrar contenido relacionado.
-                Puedes crear nuevas etiquetas escribiendo el nombre y presionando Enter.
-              </p>
+            {/* Existing Tags */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-dark-300">Etiquetas Disponibles</label>
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map(tag => {
+                  const isSelected = selectedTags.some((t: Tag) => t.id === tag.id);
+                  return (
+                    <button
+                      key={tag.id}
+                      onClick={() => handleTagToggle(tag)}
+                      className={`px-3 py-1.5 rounded-full text-sm transition-all border ${isSelected
+                        ? 'bg-primary-500/20 border-primary-500 text-primary-300'
+                        : 'bg-dark-800 border-dark-600 text-dark-400 hover:border-dark-400'
+                        }`}
+                      style={isSelected ? { borderColor: tag.color, color: tag.color } : {}}
+                    >
+                      {tag.name} {isSelected && '✓'}
+                    </button>
+                  )
+                })}
+                {availableTags.length === 0 && <span className="text-dark-500 text-sm italic">No hay etiquetas creadas aún.</span>}
+              </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-dark-700">
-              <button onClick={goToPrevStep} className="text-dark-400 hover:text-dark-200">
-                ← Atrás
-              </button>
-              <button onClick={goToNextStep} className="btn-primary">
-                Revisar y guardar →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Confirm */}
-        {currentStep === 'confirm' && (
-          <div className="space-y-6">
+            {/* Tag Creator */}
             <div>
-              <h2 className="text-xl font-bold text-dark-100 mb-2">
-                Confirmar y guardar
-              </h2>
-              <p className="text-dark-400 text-sm">
-                Revisa el contenido final antes de guardarlo en Notion
-              </p>
+              <label className="text-sm font-medium text-dark-300 mb-2 block">Crear Nueva Etiqueta</label>
+              <TagSelector
+                availableTags={availableTags}
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                onCreateTag={onCreateTag}
+              />
             </div>
 
-            {/* Summary card */}
-            <div className="bg-dark-800/50 rounded-xl p-4 space-y-4">
-              <div>
-                <span className="text-sm text-dark-400">Título:</span>
-                <p className="text-dark-100 font-medium">{title}</p>
-              </div>
-
-              <div>
-                <span className="text-sm text-dark-400">Resumen:</span>
-                <p className="text-dark-200 text-sm">{summary.slice(0, 200)}...</p>
-              </div>
-
-              <div>
-                <span className="text-sm text-dark-400">Puntos clave:</span>
-                <p className="text-dark-200">{keyPoints.length} puntos</p>
-              </div>
-
-              <div>
-                <span className="text-sm text-dark-400">Etiquetas:</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {selectedTags.length > 0 ? (
-                    selectedTags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="px-2 py-1 rounded-lg text-xs"
-                        style={{
-                          backgroundColor: `${tag.color}20`,
-                          color: tag.color,
-                        }}
-                      >
-                        {tag.name}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-dark-500 text-sm">Sin etiquetas</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-dark-700">
-              <button onClick={goToPrevStep} className="text-dark-400 hover:text-dark-200">
-                ← Atrás
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="btn-primary"
-              >
-                {isSaving ? (
-                  <>
-                    <span className="animate-spin">⏳</span>
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    💾 Guardar en Notion
-                  </>
-                )}
+            <div className="flex justify-between pt-8 border-t border-dark-700">
+              <button onClick={goToPrevStep} className="btn-ghost">← Volver</button>
+              <button onClick={handleSave} disabled={isSaving} className="btn-primary">
+                {isSaving ? 'Guardando...' : '💾 Guardar en Notion'}
               </button>
             </div>
           </div>

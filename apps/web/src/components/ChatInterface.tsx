@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { CategorySelector } from './CategorySelector';
 import { supabase, getUserCategories } from '../lib/supabase';
+import { useStreamingChat } from '../hooks/useStreamingChat';
 
 interface Message {
   id: string;
@@ -16,12 +17,14 @@ interface Message {
     excerpts?: string[];
   }[];
   metadata?: {
-    tokensUsed: number;
-    provider: string;
-    processingTimeMs: number;
+    tokensUsed?: number;
+    provider?: string;
+    processingTimeMs?: number;
     searchMethod?: 'semantic' | 'notion_direct';
     chunksRetrieved?: number;
     pagesUsed?: number;
+    chunksUsed?: number;
+    method?: 'semantic' | 'notion_direct';
   };
 }
 
@@ -34,15 +37,27 @@ interface Category {
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  // isLoading is now derived from isStreaming for UI states, but we might keep it for initial setup
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [useSemanticSearch, setUseSemanticSearch] = useState(true); // Default: usar búsqueda semántica
+  const [useSemanticSearch, setUseSemanticSearch] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+  // Streaming Hook
+  const {
+    startStream,
+    isStreaming,
+    streamedContent,
+    sources,
+    metadata,
+    error: streamError,
+    reset: resetStream
+  } = useStreamingChat({
+    userId: userId || undefined,
+    useSemantic: useSemanticSearch
+  });
 
   // Verificar autenticación y cargar categorías
   useEffect(() => {
@@ -58,7 +73,6 @@ export function ChatInterface() {
 
     checkAuthAndLoad();
 
-    // Escuchar cambios de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setIsAuthenticated(!!session);
       setUserId(session?.user?.id || null);
@@ -70,10 +84,41 @@ export function ChatInterface() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Scroll al último mensaje
+  // Efecto para manejar el fin del streaming y guardar el mensaje
+  // Usamos una ref para trackear si estabamos streameando
+  const wasStreamingRef = useRef(false);
+
+  useEffect(() => {
+    if (wasStreamingRef.current && !isStreaming) {
+      // El stream acaba de terminar
+      if (streamedContent) {
+        const assistantMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: streamedContent,
+          sources: sources,
+          metadata: metadata || undefined,
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        resetStream();
+      } else if (streamError) {
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          role: 'assistant',
+          content: `❌ Error: ${streamError}`,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        resetStream();
+      }
+    }
+    wasStreamingRef.current = isStreaming;
+  }, [isStreaming, streamedContent, sources, metadata, streamError, resetStream]);
+
+
+  // Scroll al último mensaje (o al flujo actual)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, streamedContent, isStreaming]);
 
   const fetchCategories = async () => {
     try {
@@ -86,7 +131,7 @@ export function ChatInterface() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isStreaming) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -96,81 +141,30 @@ export function ChatInterface() {
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
-    setIsLoading(true);
 
-    try {
-      // Verificar que el usuario esté autenticado para búsqueda semántica
-      if (useSemanticSearch && !userId) {
-        throw new Error('Debes iniciar sesión para usar la búsqueda semántica');
-      }
-
-      // Elegir endpoint según el método de búsqueda
-      const endpoint = useSemanticSearch ? '/ask/semantic' : '/ask';
-      const body = useSemanticSearch
-        ? {
-          userId,
-          question: input,
-          categoryId: selectedCategory?.id,
-          maxChunks: 5,
-        }
-        : {
-          question: input,
-          categoryId: selectedCategory?.id,
-          maxSources: 5,
-        };
-
-      const response = await fetch(`${API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Error al procesar la pregunta');
-      }
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.answer,
-        sources: data.sources,
-        metadata: data.metadata,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: `❌ Error: ${error instanceof Error ? error.message : 'Error desconocido'}`,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-    }
+    // Iniciar streaming
+    startStream(input, selectedCategory?.id);
   };
 
   const clearChat = () => {
     setMessages([]);
+    resetStream();
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-200px)] max-h-[800px]">
-      {/* Header con selector de categoría */}
+      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-dark-700">
         <div className="flex items-center gap-3">
           <span className="text-2xl">🧠</span>
           <div>
             <h2 className="text-lg font-semibold text-dark-100">Chat con tu Cerebro</h2>
             <p className="text-xs text-dark-500">
-              {useSemanticSearch ? '🔮 Búsqueda Semántica (Fase 6)' : '📄 Búsqueda Directa en Notion'}
+              {useSemanticSearch ? '🔮 Búsqueda Semántica' : '📄 Búsqueda Directa en Notion'}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Toggle de búsqueda semántica */}
           <button
             onClick={() => setUseSemanticSearch(!useSemanticSearch)}
             className={`p-2 rounded-lg transition-colors ${useSemanticSearch
@@ -202,18 +196,16 @@ export function ChatInterface() {
 
       {/* Área de mensajes */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
+        {messages.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-6xl mb-4">🎯</div>
             <h3 className="text-xl font-semibold text-dark-200 mb-2">
               ¿Qué quieres recordar?
             </h3>
             <p className="text-dark-500 max-w-md">
-              Pregunta sobre el contenido que has guardado. Selecciona una categoría
-              para obtener respuestas más relevantes o deja vacío para buscar en todo.
+              Pregunta sobre el contenido que has guardado.
             </p>
 
-            {/* Sugerencias */}
             <div className="mt-6 flex flex-wrap gap-2 justify-center">
               {[
                 '¿Qué aprendí sobre React?',
@@ -236,22 +228,23 @@ export function ChatInterface() {
           ))
         )}
 
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-accent-pink flex items-center justify-center">
-              🧠
-            </div>
-            <div className="flex-1 p-4 rounded-2xl bg-dark-700/50">
-              <div className="flex items-center gap-2">
-                <div className="animate-pulse flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-primary-500 animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-                <span className="text-dark-400 text-sm">Pensando...</span>
-              </div>
-            </div>
+        {/* Mensaje en Streaming */}
+        {isStreaming && (
+          <ChatMessage
+            message={{
+              id: 'streaming',
+              role: 'assistant',
+              content: streamedContent,
+              sources: sources,
+            }}
+            isStreaming={true}
+          />
+        )}
+
+        {/* Error en streaming si ocurre antes de finalizar limpio */}
+        {!isStreaming && streamError && messages.length === 0 && (
+          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400">
+            Error: {streamError}
           </div>
         )}
 
@@ -267,14 +260,14 @@ export function ChatInterface() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Escribe tu pregunta..."
             className="flex-1 px-4 py-3 rounded-xl bg-dark-700 border border-dark-600 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none text-dark-100 placeholder-dark-500 transition-colors"
-            disabled={isLoading}
+            disabled={isStreaming}
           />
           <button
             type="submit"
-            disabled={!input.trim() || isLoading}
+            disabled={!input.trim() || isStreaming}
             className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? (
+            {isStreaming ? (
               <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -286,18 +279,13 @@ export function ChatInterface() {
             )}
           </button>
         </div>
-        {selectedCategory && (
-          <p className="mt-2 text-xs text-dark-500">
-            🔍 Buscando en: <span className="text-primary-400">{selectedCategory.name}</span> y subcategorías
-          </p>
-        )}
       </form>
     </div>
   );
 }
 
 // Componente de mensaje individual
-function ChatMessage({ message }: { message: Message }) {
+function ChatMessage({ message, isStreaming = false }: { message: Message; isStreaming?: boolean }) {
   const isUser = message.role === 'user';
 
   return (
@@ -320,12 +308,12 @@ function ChatMessage({ message }: { message: Message }) {
           <div
             className="prose prose-invert prose-sm max-w-none"
             dangerouslySetInnerHTML={{
-              __html: formatMarkdown(message.content)
+              __html: formatMarkdown(message.content) + (isStreaming ? '<span class="inline-block w-1.5 h-4 bg-primary-400 ml-1 animate-pulse align-middle"></span>' : '')
             }}
           />
         </div>
 
-        {/* Fuentes */}
+        {/* Fuentes - Mostrar incluso durante streaming si llegan */}
         {message.sources && message.sources.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="text-xs text-dark-500">Fuentes:</span>
@@ -339,36 +327,24 @@ function ChatMessage({ message }: { message: Message }) {
                 title={source.excerpts?.[0] || source.title}
               >
                 📄 {source.title.slice(0, 25)}{source.title.length > 25 ? '...' : ''}
-                {source.similarity !== undefined && (
-                  <span className="text-dark-500 ml-1">
-                    ({Math.round(source.similarity * 100)}%)
-                  </span>
-                )}
               </a>
             ))}
           </div>
         )}
 
-        {/* Metadata */}
-        {message.metadata && (
+        {/* Metadata - Solo al final */}
+        {!isStreaming && (message.metadata || message.metadata?.tokensUsed) && (
           <div className="mt-1 text-xs text-dark-600 flex items-center gap-2">
-            <span>{message.metadata.provider}</span>
-            <span>•</span>
-            <span>{message.metadata.tokensUsed} tokens</span>
-            <span>•</span>
-            <span>{message.metadata.processingTimeMs}ms</span>
-            {message.metadata.searchMethod && (
-              <>
-                <span>•</span>
-                <span className={message.metadata.searchMethod === 'semantic' ? 'text-primary-400' : 'text-dark-400'}>
-                  {message.metadata.searchMethod === 'semantic' ? '🔮 Semántico' : '📄 Directo'}
-                </span>
-              </>
+            {message.metadata.provider && <span>{message.metadata.provider}</span>}
+            {message.metadata.tokensUsed && (
+              <><span>•</span><span>{message.metadata.tokensUsed} tokens</span></>
             )}
-            {message.metadata.chunksRetrieved !== undefined && (
+            {message.metadata.method && (
               <>
                 <span>•</span>
-                <span>{message.metadata.chunksRetrieved} chunks</span>
+                <span className={message.metadata.method === 'semantic' ? 'text-primary-400' : 'text-dark-400'}>
+                  {message.metadata.method === 'semantic' ? '🔮 Semántico' : '📄 Directo'}
+                </span>
               </>
             )}
           </div>
@@ -380,6 +356,7 @@ function ChatMessage({ message }: { message: Message }) {
 
 // Función simple de formateo markdown
 function formatMarkdown(text: string): string {
+  if (!text) return '';
   return text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')

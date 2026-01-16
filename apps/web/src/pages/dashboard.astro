@@ -3,7 +3,7 @@
  * Dashboard Page - Migrada a AppLayout
  */
 import AppLayout from '../layouts/AppLayout.astro';
-import { Dashboard } from '../components/Dashboard';
+import { EnhancedDashboard } from '../components/EnhancedDashboard';
 import { PageHeader } from '../components/ui/PageHeader';
 import { TipsCard, HowItWorksCard } from '../components/ui/SidebarCard';
 import { QuickActions } from '../components/ui/QuickActions';
@@ -25,7 +25,7 @@ import { QuickActions } from '../components/ui/QuickActions';
 
   <!-- Main Content -->
   <Fragment slot="main">
-    <Dashboard client:load />
+    <EnhancedDashboard client:load />
   </Fragment>
 
   <!-- Sidebar -->

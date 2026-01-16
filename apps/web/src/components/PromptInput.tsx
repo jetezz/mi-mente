@@ -20,7 +20,7 @@ const PROMPT_SUGGESTIONS = [
 ];
 
 export function PromptInput({ value, onChange, disabled = false }: PromptInputProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const handleSuggestionClick = (suggestion: string) => {
     onChange(suggestion);

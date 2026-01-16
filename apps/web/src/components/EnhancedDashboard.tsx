@@ -1,9 +1,10 @@
 /**
  * EnhancedDashboard Component - Fase 8
- * Dashboard mejorado con flujo: Input → Preview → Edit → Save → Index
+ * Dashboard mejorado con flujo: Input → Edit → Tags → Save → Index
  */
 
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import { UrlInput } from './UrlInput';
 import { PromptInput } from './PromptInput';
 import { ProcessingProgress } from './ProcessingProgress';
@@ -16,6 +17,7 @@ type ProcessingStep =
   | 'downloading'
   | 'transcribing'
   | 'summarizing'
+  | 'analyzing'
   | 'preview'
   | 'saving'
   | 'indexing'
@@ -29,6 +31,7 @@ export function EnhancedDashboard() {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [customPrompt, setCustomPrompt] = useState('');
+  const [streamingSummary, setStreamingSummary] = useState('');
 
   // Contenido procesado por la IA
   const [processedContent, setProcessedContent] = useState<ProcessedContent | null>(null);
@@ -41,20 +44,39 @@ export function EnhancedDashboard() {
   const [savedNotionPageId, setSavedNotionPageId] = useState<string | null>(null);
   const [savedPageTitle, setSavedPageTitle] = useState<string>('');
 
-  // User ID para tags (desde localStorage)
+  // User ID desde Supabase Auth
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // Cargar userId y tags al montar
+  // Cargar userId desde Supabase Auth
   useEffect(() => {
-    // Solo en cliente
-    if (typeof window !== 'undefined') {
-      const storedUserId = localStorage.getItem('userId');
-      setUserId(storedUserId);
-
-      if (storedUserId) {
-        fetchTags(storedUserId);
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUserId(session.user.id);
+        setIsAuthenticated(true);
+        fetchTags(session.user.id);
+      } else {
+        setIsAuthenticated(false);
       }
-    }
+    };
+
+    checkAuth();
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        setIsAuthenticated(true);
+        fetchTags(session.user.id);
+      } else {
+        setUserId(null);
+        setIsAuthenticated(false);
+        setAvailableTags([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const fetchTags = async (uid: string) => {
@@ -73,65 +95,60 @@ export function EnhancedDashboard() {
     setError(null);
     setProgress(0);
     setProcessedContent(null);
+    setStreamingSummary('');
+    setCurrentStep('downloading');
 
-    // Simular progreso mientras se procesa
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
+    // Use EventSource for streaming updates
+    // const eventSource = new EventSource(`${API_URL}/process/stream-preview?url=${encodeURIComponent(url)}&userId=${userId || ''}&customPrompt=${encodeURIComponent(customPrompt || '')}`);
+    // FIX: Using EventSource with custom headers isn't standard, passing everything in query params
+    const evtUrl = `${API_URL}/process/stream-preview?url=${encodeURIComponent(url)}&userId=${userId || ''}&customPrompt=${encodeURIComponent(customPrompt || '')}`;
+    const eventSource = new EventSource(evtUrl);
+
+    eventSource.onmessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'status') {
+          setCurrentStep(data.step as ProcessingStep);
+          if (data.progress) setProgress((prev: number) => data.progress);
+        } else if (data.type === 'token') {
+          setStreamingSummary((prev: string) => prev + data.content);
+          // Auto-scroll to bottom of streaming summary if needed?
+        } else if (data.type === 'transcription') {
+          // Optional: Show title or partial transcription
+        } else if (data.type === 'result') {
+          setProcessedContent({
+            title: data.title || 'Sin Título',
+            summary: data.summary,
+            keyPoints: data.keyPoints || [],
+            sentiment: data.sentiment || 'neutral',
+            originalUrl: data.originalUrl,
+            transcription: data.transcription
+          });
+          setCurrentStep('preview');
+          eventSource.close();
+        } else if (data.type === 'done') {
+          eventSource.close();
+        } else if (data.type === 'error') {
+          throw new Error(data.error);
         }
-        return prev + 10;
-      });
-    }, 1000);
-
-    try {
-      // Paso 1: Downloading
-      setCurrentStep('downloading');
-
-      // Paso 2: Transcribing
-      setTimeout(() => setCurrentStep('transcribing'), 2000);
-
-      // Paso 3: Summarizing (con prompt personalizado)
-      setTimeout(() => setCurrentStep('summarizing'), 5000);
-
-      // Llamar al endpoint de PREVIEW (no guarda en Notion todavía)
-      const response = await fetch(`${API_URL}/process/preview`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url,
-          customPrompt: customPrompt || undefined,
-        }),
-      });
-
-      clearInterval(progressInterval);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error procesando el contenido');
+      } catch (err) {
+        console.error('Error parsing stream data:', err);
+        setError('Error procesando respuesta del servidor');
+        eventSource.close();
+        setCurrentStep('error');
       }
+    };
 
-      const data = await response.json();
-
-      // Guardar contenido procesado y mostrar preview
-      setProcessedContent({
-        title: data.title,
-        summary: data.summary,
-        keyPoints: data.keyPoints || [],
-        sentiment: data.sentiment || 'neutral',
-        originalUrl: url,
-        transcription: data.transcription,
-      });
-
-      setProgress(100);
-      setCurrentStep('preview');
-
-    } catch (err) {
-      clearInterval(progressInterval);
-      setError(err instanceof Error ? err.message : 'Error desconocido');
-      setCurrentStep('error');
-    }
+    eventSource.onerror = (err: Event) => {
+      console.error('EventSource failed:', err);
+      // Only set error if not already done/closed
+      if (currentStep !== 'preview' && currentStep !== 'done') {
+        setError('Conexión perdida con el servidor. Verifica el worker.');
+        setCurrentStep('error');
+      }
+      eventSource.close();
+    };
   };
 
   const handleSave = async (editedContent: EditedContent) => {
@@ -144,8 +161,7 @@ export function EnhancedDashboard() {
         body: JSON.stringify({
           url: editedContent.originalUrl,
           title: editedContent.title,
-          summary: editedContent.summary,
-          keyPoints: editedContent.keyPoints,
+          markdown: editedContent.markdown,
           tags: editedContent.tags.map(t => t.name),
           userId,
         }),
@@ -190,7 +206,7 @@ export function EnhancedDashboard() {
 
   const handleCreateTag = async (name: string): Promise<Tag> => {
     if (!userId) {
-      throw new Error('Usuario no autenticado');
+      throw new Error('Usuario no autenticado. Por favor, inicia sesión.');
     }
 
     const response = await fetch(`${API_URL}/tags`, {
@@ -199,12 +215,13 @@ export function EnhancedDashboard() {
       body: JSON.stringify({
         userId,
         name,
-        color: `#${Math.floor(Math.random() * 16777215).toString(16)}`, // Color aleatorio
+        color: getRandomColor(),
       }),
     });
 
     if (!response.ok) {
-      throw new Error('Error creando tag');
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error creando tag');
     }
 
     const data = await response.json();
@@ -214,6 +231,21 @@ export function EnhancedDashboard() {
     setAvailableTags(prev => [...prev, newTag]);
 
     return newTag;
+  };
+
+  // Generar colores bonitos para tags
+  const getRandomColor = () => {
+    const colors = [
+      '#8B5CF6', // Purple
+      '#06B6D4', // Cyan
+      '#10B981', // Emerald
+      '#F59E0B', // Amber
+      '#EF4444', // Red
+      '#EC4899', // Pink
+      '#3B82F6', // Blue
+      '#6366F1', // Indigo
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
   };
 
   const handleReset = () => {
@@ -230,6 +262,7 @@ export function EnhancedDashboard() {
   const handleCancelPreview = () => {
     setCurrentStep('idle');
     setProcessedContent(null);
+    setStreamingSummary('');
   };
 
   const handleCloseIndexingModal = () => {
@@ -237,6 +270,24 @@ export function EnhancedDashboard() {
     // Redirigir al dashboard limpio
     handleReset();
   };
+
+  // Si no está autenticado, mostrar mensaje
+  if (!isAuthenticated && typeof window !== 'undefined') {
+    return (
+      <div className="card p-8 text-center">
+        <span className="text-6xl mb-4 block">🔒</span>
+        <h3 className="text-xl font-semibold text-dark-200 mb-2">
+          Inicia sesión para continuar
+        </h3>
+        <p className="text-dark-400 mb-4">
+          Necesitas estar autenticado para procesar contenido.
+        </p>
+        <a href="/login" className="btn-primary">
+          Iniciar Sesión
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -265,20 +316,33 @@ export function EnhancedDashboard() {
         </div>
       )}
 
-      {/* Progress - Durante procesamiento */}
-      {['downloading', 'transcribing', 'summarizing'].includes(currentStep) && (
-        <ProcessingProgress currentStep={currentStep as any} progress={progress} />
+      {/* Progress */}
+      {['downloading', 'transcribing', 'summarizing', 'analyzing'].includes(currentStep) && (
+        <div className="space-y-6">
+          <ProcessingProgress currentStep={currentStep as any} progress={progress} />
+        </div>
       )}
 
-      {/* Editor de contenido - Antes de guardar */}
-      {currentStep === 'preview' && processedContent && (
+      {/* Editor de contenido - Durante streaming y Preview */}
+      {(['summarizing', 'analyzing', 'preview'].includes(currentStep)) && (
         <ContentEditor
-          content={processedContent}
+          content={
+            currentStep === 'preview' && processedContent
+              ? processedContent
+              : {
+                title: 'Generando resumen...',
+                summary: streamingSummary,
+                keyPoints: [],
+                sentiment: 'neutral',
+                originalUrl: '',
+              }
+          }
           availableTags={availableTags}
           onSave={handleSave}
           onCancel={handleCancelPreview}
           onCreateTag={handleCreateTag}
           isSaving={currentStep === 'saving'}
+          isStreaming={currentStep === 'summarizing' || currentStep === 'analyzing'}
         />
       )}
 
