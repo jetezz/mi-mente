@@ -141,9 +141,10 @@ networks:
     *   **Input**: Recibir texto plano del Worker y `categoryId`.
     *   **Processing**: Usar la IA para generar: Resumen, Puntos Clave, Etiquetas y Sentimiento.
     *   **Output**: Crear página en base de datos Notion con formato rico (H1, Bullet points) y asignar la propiedad de Categoría seleccionada.
-3.  **Gestión de Categorías**:
-    *   CRUD de Categorías en Supabase con soporte de jerarquía (`parent_id`).
-    *   Sincronización de nombres de categorías con Notion (opcional, si se usa Select).
+    *   **Management**:
+    *   **Categorías (Usuario)**: El usuario selecciona o crea la categoría (jerárquica) en el Dashboard antes de guardar. Esto organiza la página en Notion.
+    *   **Tags (Sistema)**: La IA genera automáticamente etiquetas (Vectors/Supabase) invisibles para el usuario en el flujo de creación, pero útiles para búsqueda y filtrado posterior.
+    *   **Output**: Crear página en Notion con propiedades `Category` (Select) y `Tags` (Multi-select).
 
 ---
 
@@ -245,6 +246,35 @@ WITH (lists = 100);
 - **Escalabilidad:** Compatible con miles de páginas
 - **Agnóstico al modelo:** Funciona con cualquier proveedor de embeddings
 
+#### D. Tabla `tags` (Diccionario de Etiquetas)
+Tags únicos per-usuario, generados automáticamente por la IA.
+
+```sql
+CREATE TABLE tags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, name) -- Un tag por nombre por usuario
+);
+```
+
+#### E. Tabla `page_tags` (Relación N:M)
+Conecta páginas con sus tags asociados.
+
+```sql
+CREATE TABLE page_tags (
+  page_id UUID REFERENCES notion_pages(id) ON DELETE CASCADE,
+  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (page_id, tag_id)
+);
+```
+
+**Responsabilidad:**
+- **`tags`**: Diccionario normalizado de etiquetas únicas
+- **`page_tags`**: Relación muchos-a-muchos (una página puede tener múltiples tags, un tag puede estar en múltiples páginas)
+- **Beneficio**: Evita duplicados y permite consultas eficientes por tag
+
 ---
 
 ### 6.2 Pipeline de Indexación (OFFLINE)
@@ -315,7 +345,38 @@ await supabase.from('notion_page_chunks').insert(
 );
 ```
 
-**Resultado:** Supabase queda como índice semántico persistente.
+#### Paso 6: Sincronizar Tags
+Extraer tags de Notion y persistirlos normalizados.
+
+```typescript
+// Extraer tags de la página de Notion
+const pageTags = extractTags(notionPage); // ['javascript', 'react', 'tutorial']
+
+// Upsert cada tag en el diccionario
+for (const tagName of pageTags) {
+  // Crear o recuperar tag existente
+  const { data: existingTag } = await supabase
+    .from('tags')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('name', tagName)
+    .single();
+
+  const tagId = existingTag?.id || (await supabase
+    .from('tags')
+    .insert({ user_id: userId, name: tagName })
+    .select('id')
+    .single()).data.id;
+
+  // Crear relación página-tag
+  await supabase.from('page_tags').upsert({
+    page_id: notionPage.id,
+    tag_id: tagId
+  });
+}
+```
+
+**Resultado:** Supabase queda como índice semántico persistente con tags normalizados.
 
 ---
 
@@ -567,20 +628,20 @@ function useStreamingChat() {
 │                                                                │
 │  2. PROCESAMIENTO (igual que antes)                            │
 │     URL → Descarga → Transcripción → IA genera resumen         │
-│     ⚠️ Si hay prompt personalizado, se añade al system prompt  │
+│     ⚠️ La IA genera TAGS automáticamente (invisible para usuar)│
 │                                                                │
 │  3. PREVIEW (NUEVO)                                            │
 │     ├─► Mostrar resultado en Markdown renderizado              │
 │     ├─► Editor de contenido WYSIWYG/Markdown                   │
 │     └─► El usuario puede modificar todo                        │
 │                                                                │
-│  4. ETIQUETAS (NUEVO - Manual)                                 │
-│     ├─► Selector de etiquetas existentes (desde Supabase)      │
-│     ├─► Opción de crear nuevas etiquetas                       │
-│     └─► La IA NO genera etiquetas, solo el usuario             │
+│  4. CATEGORIZACIÓN (Usuario)                                   │
+│     ├─► Selector de CATEGORÍA (desde Supabase)                 │
+│     ├─► Opción de crear nueva categoría                        │
+│     └─► Las TAGS se manejan internamente por el sistema        │
 │                                                                │
 │  5. GUARDAR EN NOTION                                          │
-│     └─► Contenido final (con ediciones) → Notion               │
+│     └─► Contenido + Categoría (Usuario) + Tags (AI) → Notion   │
 │                                                                │
 │  6. MODAL POST-GUARDADO (NUEVO)                                │
 │     ├─► "¿Quieres indexar este contenido para búsqueda?"       │
@@ -614,17 +675,8 @@ interface MarkdownPreviewProps {
 }
 ```
 
-#### C. `TagSelector.tsx`
-Selector múltiple de etiquetas con creación inline.
-
-```typescript
-interface TagSelectorProps {
-  availableTags: Tag[];
-  selectedTags: Tag[];
-  onTagsChange: (tags: Tag[]) => void;
-  onCreateTag: (name: string) => Promise<Tag>;
-}
-```
+#### C. `CategorySelector.tsx`
+Selector de categoría (existente) reutilizado para el flujo de guardado.
 
 #### D. `IndexingModal.tsx`
 Modal de confirmación post-guardado.
@@ -702,25 +754,6 @@ Reemplazado por streaming para mejor experiencia, pero la lógica de negocio sub
 })
 ```
 
-### 8.4 Tabla de Etiquetas en Supabase
-
-```sql
-CREATE TABLE tags (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  color TEXT DEFAULT '#8B5CF6', -- Color hexadecimal
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(user_id, name)
-);
-
--- Relación N:N con páginas
-CREATE TABLE page_tags (
-  page_id UUID REFERENCES notion_pages(id) ON DELETE CASCADE,
-  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
-  PRIMARY KEY (page_id, tag_id)
-);
-```
 
 ---
 

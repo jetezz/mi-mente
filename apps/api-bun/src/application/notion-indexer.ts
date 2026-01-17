@@ -158,7 +158,7 @@ export class NotionIndexer {
    */
   async indexPage(
     userId: string,
-    page: { id: string; title: string; content: string; categories?: string[]; lastEdited: string }
+    page: { id: string; title: string; content: string; categories?: string[]; tags?: string[]; lastEdited: string }
   ): Promise<IndexedPage & { deleted?: boolean }> {
     if (!this.supabase) {
       throw new Error('Supabase no configurado');
@@ -259,6 +259,61 @@ export class NotionIndexer {
       }
 
       const pageDbId = upsertedPage.id;
+
+      // 5.1. Gestionar Tags (NUEVO)
+      if (page.tags && page.tags.length > 0) {
+        // Limpiar relaciones antiguas (opcional, pero seguro para sincronización)
+        await this.supabase
+          .from('page_tags')
+          .delete()
+          .eq('page_id', pageDbId);
+
+        for (const tagName of page.tags) {
+          // A. Buscar Tag existente
+          const { data: existingTags } = await this.supabase
+            .from('tags')
+            .select('id')
+            .eq('name', tagName)
+            .eq('user_id', userId)
+            .limit(1);
+
+          let tagId: string;
+
+          if (existingTags && existingTags.length > 0) {
+            tagId = existingTags[0].id;
+          } else {
+            // B. Crear Tag si no existe
+            console.log(`   🏷️ Creando nuevo tag: "${tagName}"`);
+            const { data: newTag, error: tagError } = await this.supabase
+              .from('tags')
+              .insert({
+                user_id: userId,
+                name: tagName,
+                color: '#8B5CF6' // Default color
+              })
+              .select('id')
+              .single();
+
+            if (tagError) {
+              console.error(`Error calculando tag "${tagName}":`, tagError);
+              continue;
+            }
+            tagId = newTag.id;
+          }
+
+          // C. Crear relación en page_tags
+          const { error: relError } = await this.supabase
+            .from('page_tags')
+            .insert({
+              page_id: pageDbId,
+              tag_id: tagId
+            });
+
+          if (relError) {
+            console.error(`Error enlazando tag "${tagName}" a página:`, relError);
+          }
+        }
+      }
 
       // 6. Eliminar chunks antiguos de esta página
       await this.supabase

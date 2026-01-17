@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { TagSelector, type Tag } from './TagSelector';
+import React, { useState, useEffect } from 'react';
+import { CategorySelector } from './CategorySelector';
 import { Stepper } from './ui/Stepper';
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -14,35 +14,41 @@ export interface ProcessedContent {
   transcription?: string;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  parent_id: string | null;
+}
+
 export interface EditedContent {
   title: string;
-  markdown: string; // Unified content
-  tags: Tag[];
+  markdown: string;
+  category?: Category;
   originalUrl: string;
 }
 
 // Steps
 const STEPS = [
   { id: 'edit', label: 'Editar Contenido', icon: '✏️' },
-  { id: 'tags', label: 'Etiquetas y Guardar', icon: '🏷️' },
+  { id: 'category', label: 'Categoría y Guardar', icon: '📂' },
 ];
 
 interface ContentEditorProps {
   content: ProcessedContent;
-  availableTags: Tag[];
+  availableCategories: Category[];
   onSave: (editedContent: EditedContent) => Promise<void>;
   onCancel: () => void;
-  onCreateTag: (name: string) => Promise<Tag>;
+  onCreateCategory: (name: string) => Promise<Category>;
   isSaving?: boolean;
   isStreaming?: boolean;
 }
 
 export function ContentEditor({
   content,
-  availableTags,
+  availableCategories,
   onSave,
   onCancel,
-  onCreateTag,
+  onCreateCategory,
   isSaving = false,
   isStreaming = false,
 }: ContentEditorProps) {
@@ -51,7 +57,9 @@ export function ContentEditor({
 
   // State
   const [title, setTitle] = useState(content.title);
-  const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
   // BlockNote Editor
   const editor = useCreateBlockNote();
@@ -96,7 +104,7 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
   };
 
   const goToNextStep = () => {
-    handleStepChange('tags');
+    handleStepChange('category');
   };
 
   const goToPrevStep = () => {
@@ -110,16 +118,22 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
     await onSave({
       title,
       markdown,
-      tags: selectedTags,
+      category: selectedCategory || undefined,
       originalUrl: content.originalUrl,
     });
   };
 
-  const handleTagToggle = (tag: Tag) => {
-    if (selectedTags.some(t => t.id === tag.id)) {
-      setSelectedTags(selectedTags.filter(t => t.id !== tag.id));
-    } else {
-      setSelectedTags([...selectedTags, tag]);
+  const handleCreateNewCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    setIsCreatingCategory(true);
+    try {
+      const newCat = await onCreateCategory(newCategoryName.trim());
+      setSelectedCategory(newCat);
+      setNewCategoryName('');
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsCreatingCategory(false);
     }
   };
 
@@ -182,46 +196,44 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
           </div>
         )}
 
-        {currentStep === 'tags' && (
+        {currentStep === 'category' && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-dark-100">Etiquetas</h3>
-              <p className="text-sm text-dark-400">Organiza tu contenido antes de guardarlo.</p>
+              <h3 className="text-lg font-medium text-dark-100">Categoría</h3>
+              <p className="text-sm text-dark-400">Selecciona o crea una categoría para organizar tu contenido.</p>
             </div>
 
-            {/* Existing Tags */}
+            {/* Category Selector */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-dark-300">Etiquetas Disponibles</label>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map(tag => {
-                  const isSelected = selectedTags.some((t: Tag) => t.id === tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      onClick={() => handleTagToggle(tag)}
-                      className={`px-3 py-1.5 rounded-full text-sm transition-all border ${isSelected
-                        ? 'bg-primary-500/20 border-primary-500 text-primary-300'
-                        : 'bg-dark-800 border-dark-600 text-dark-400 hover:border-dark-400'
-                        }`}
-                      style={isSelected ? { borderColor: tag.color, color: tag.color } : {}}
-                    >
-                      {tag.name} {isSelected && '✓'}
-                    </button>
-                  )
-                })}
-                {availableTags.length === 0 && <span className="text-dark-500 text-sm italic">No hay etiquetas creadas aún.</span>}
+              <label className="text-sm font-medium text-dark-300">Categoría Seleccionada</label>
+              <div className="max-h-[300px] overflow-y-auto border border-dark-700 rounded-xl p-4 bg-dark-800/50">
+                <CategorySelector
+                  categories={availableCategories}
+                  selected={selectedCategory}
+                  onSelect={setSelectedCategory}
+                />
               </div>
             </div>
 
-            {/* Tag Creator */}
-            <div>
-              <label className="text-sm font-medium text-dark-300 mb-2 block">Crear Nueva Etiqueta</label>
-              <TagSelector
-                availableTags={availableTags}
-                selectedTags={selectedTags}
-                onTagsChange={setSelectedTags}
-                onCreateTag={onCreateTag}
-              />
+            {/* Create Category */}
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-dark-300 mb-2 block">Nueva Categoría</label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryName(e.target.value)}
+                  placeholder="Nombre..."
+                  className="input w-full"
+                />
+              </div>
+              <button
+                onClick={handleCreateNewCategory}
+                disabled={isCreatingCategory || !newCategoryName.trim()}
+                className="btn-secondary mb-[2px]"
+              >
+                {isCreatingCategory ? 'Creando...' : '+ Crear'}
+              </button>
             </div>
 
             <div className="flex justify-between pt-8 border-t border-dark-700">

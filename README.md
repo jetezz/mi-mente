@@ -15,7 +15,7 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 | **Fase 3** | Orquestador Bun (El Cerebro) | 🟡 80% |
 | **Fase 4** | Frontend Astro (La Cara) + Auth | 🟡 85% |
 | **Fase 5** | Chat con Notion (La Memoria) | ✅ 100% |
-| **Fase 6** | Motor Semántico Vectorial (El Cerebro 2.0) | 🟢 90% |
+| **Fase 6** | Motor Semántico Vectorial (El Cerebro 2.0) | ✅ 95% |
 | **Fase 7** | Streaming de Respuestas IA (Yield) | ✅ 100% |
 | **Fase 8** | Nuevo Flujo de Subida a Notion | ✅ 100% |
 | **Fase 9** | Unificación de Estilos UI | ✅ 100% |
@@ -278,10 +278,18 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [x] 6.7.4 Link a página original de Notion desde cada fuente
   - [x] 6.7.5 Toggle para alternar entre búsqueda semántica y directa
 
-- [ ] **6.8 Jobs Automáticos**
-  - [ ] 6.8.1 Implementar cron job para re-indexación periódica (cada 6h)
-  - [ ] 6.8.2 (Opcional) Configurar webhook de Notion para indexación en tiempo real
-  - [ ] 6.8.3 Sistema de notificaciones cuando hay errores de indexación
+- [x] **6.8 Sincronización de Tags durante Indexación** ✅ `notion-indexer.ts`
+  - [x] 6.8.1 Añadir `tags: string[]` a interfaz `NotionPageContent`
+  - [x] 6.8.2 Implementar `extractTags()` en `NotionReader` para extraer tags de Notion
+  - [x] 6.8.3 Actualizar `getAllPages`, `getPagesByCategories` y `searchPages` para incluir tags
+  - [x] 6.8.4 En indexación: upsert tags a tabla `tags` (diccionario único por usuario)
+  - [x] 6.8.5 Crear relaciones en tabla `page_tags` (N:M páginas↔tags)
+  - [x] 6.8.6 Manejo de duplicados y normalización de datos
+
+- [ ] **6.9 Jobs Automáticos**
+  - [ ] 6.9.1 Implementar cron job para re-indexación periódica (cada 6h)
+  - [ ] 6.9.2 (Opcional) Configurar webhook de Notion para indexación en tiempo real
+  - [ ] 6.9.3 Sistema de notificaciones cuando hay errores de indexación
 
 ---
 
@@ -334,20 +342,20 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [x] 8.3.3 Toggle entre vista preview y vista edición
   - [ ] 8.3.4 Botón "Restaurar original" para deshacer cambios
 
-- [x] **8.4 Sistema de Etiquetas Manual**
-  - [x] 8.4.1 Crear tabla `tags` en Supabase (id, user_id, name, color)
-  - [x] 8.4.2 Crear tabla `page_tags` para relación N:N
-  - [x] 8.4.3 Endpoints CRUD: `GET/POST/DELETE /tags`
-  - [x] 8.4.4 Crear componente `TagSelector.tsx` con autocompletado
-  - [x] 8.4.5 Opción de crear etiqueta nueva inline
-  - [x] 8.4.6 Eliminar generación automática de tags por IA
-
+- [x] **8.4 Separación Categorías (Usuario) vs Tags (Sistema)** ✅ Refactorizado
+  - [x] 8.4.1 **Categorías**: Usuario selecciona desde `CategorySelector` (cargadas de Supabase)
+  - [x] 8.4.2 **Tags**: IA genera automáticamente con `aiClient.generateTags()` (invisibles al usuario)
+  - [x] 8.4.3 Renombrar paso "Etiquetas" a "Categoría" en `ContentEditor.tsx`
+  - [x] 8.4.4 Permitir crear nueva categoría desde el Dashboard
+  - [x] 8.4.5 Backend acepta `categoryName` y `tags` separados en `/process/save`
+  - [x] 8.4.6 Notion: `Category` (Select, usuario) + `Tags` (Multi-select, IA)
+  
 - [x] **8.5 Guardar con Contenido Editado**
   - [x] 8.5.1 Crear endpoint `POST /process/save` — Guardar con ediciones
   - [x] 8.5.2 Aceptar: `{ url, title, content, tags }` del usuario
   - [x] 8.5.3 Crear método `createPageFromMarkdown()` en `notion-client.ts`
   - [x] 8.5.4 Convertir Markdown del usuario a bloques de Notion
-  - [x] 8.5.5 Asignar tags como multi-select en Notion
+  - [x] 8.5.5 Asignar Category (usuario) y Tags (IA) en Notion
 
 - [x] **8.6 Modal de Indexación Post-Guardado**
   - [x] 8.6.1 Crear componente `IndexingModal.tsx`

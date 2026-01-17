@@ -60,8 +60,8 @@ export class NotionClient {
               },
             ],
           },
-          // Tags mapeado a 'categoria' (como en notion-reader.ts)
-          categoria: {
+          // Tags mapeado a 'tags'
+          tags: {
             multi_select: note.tags.map(tag => ({ name: tag })),
           },
           // Las propiedades Sentiment, URL y Date se han eliminado porque la API retorna que no existen.
@@ -274,6 +274,7 @@ export class NotionClient {
   async createPageFromMarkdown(options: {
     title: string;
     markdown: string;
+    categoryName?: string;
     tags?: string[];
     sourceUrl?: string;
   }): Promise<string | null> {
@@ -318,12 +319,17 @@ export class NotionClient {
           Name: {
             title: [{ text: { content: options.title } }],
           },
-          ...(options.tags && options.tags.length > 0 ? {
+          ...(options.categoryName ? {
             categoria: {
+              multi_select: [{ name: options.categoryName }],
+            },
+          } : {}),
+          ...(options.tags && options.tags.length > 0 ? {
+            tags: {
               multi_select: options.tags.map(tag => ({ name: tag })),
             },
           } : {}),
-        },
+        } as any, // Cast to any to avoid strict type checks if types are outdated
         children: blocks as any,
       });
 

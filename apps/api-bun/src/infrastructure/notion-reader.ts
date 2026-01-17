@@ -16,6 +16,7 @@ interface NotionPageContent {
   title: string;
   url: string;
   categories: string[];
+  tags: string[]; // NEW: Tags extracted from Notion
   content: string; // Markdown plano para el LLM
   lastEdited: string;
 }
@@ -142,6 +143,7 @@ export class NotionReader {
             title,
             url: (page as PageObjectResponse).url,
             categories,
+            tags: this.extractTags(page as PageObjectResponse),
             content,
             lastEdited: page.last_edited_time,
           });
@@ -205,6 +207,7 @@ export class NotionReader {
               title,
               url: (page as PageObjectResponse).url,
               categories,
+              tags: this.extractTags(page as PageObjectResponse),
               content,
               lastEdited: page.last_edited_time,
             });
@@ -358,6 +361,22 @@ export class NotionReader {
   }
 
   /**
+   * Extrae los tags de una página
+   */
+  private extractTags(page: PageObjectResponse): string[] {
+    // Buscar propiedad 'tags' (minusculas, como en tu DB)
+    const tagsProp = page.properties.tags || page.properties.Tags;
+
+    if (tagsProp) {
+      if (tagsProp.type === 'multi_select') {
+        return tagsProp.multi_select.map(opt => opt.name);
+      }
+    }
+
+    return [];
+  }
+
+  /**
    * Busca páginas por texto (usando la búsqueda nativa de Notion)
    */
   async searchPages(query: string, limit: number = 10): Promise<NotionPageContent[]> {
@@ -383,7 +402,8 @@ export class NotionReader {
             id: page.id,
             title,
             url: page.url,
-            categories: [], // Search results might not fetch full properties initially
+            categories: [],
+            tags: [],
             content,
             lastEdited: page.last_edited_time,
           });

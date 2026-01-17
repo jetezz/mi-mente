@@ -10,7 +10,13 @@ import { PromptInput } from './PromptInput';
 import { ProcessingProgress } from './ProcessingProgress';
 import { ContentEditor, type ProcessedContent, type EditedContent } from './ContentEditor';
 import { IndexingModal } from './IndexingModal';
-import { type Tag } from './TagSelector';
+import { getUserCategories, createCategory } from '../lib/supabase';
+// Interface for Category
+interface Category {
+  id: string;
+  name: string;
+  parent_id: string | null;
+}
 
 type ProcessingStep =
   | 'idle'
@@ -36,8 +42,10 @@ export function EnhancedDashboard() {
   // Contenido procesado por la IA
   const [processedContent, setProcessedContent] = useState<ProcessedContent | null>(null);
 
-  // Tags disponibles
-  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  // Categorías disponibles
+  const [availableCategories, setAvailableCategories] = useState<Category[]>([]);
+  // Tags generados por IA (invisibles al usuario)
+  const [generatedTags, setGeneratedTags] = useState<string[]>([]);
 
   // Para el modal de indexación
   const [showIndexingModal, setShowIndexingModal] = useState(false);
@@ -55,7 +63,7 @@ export function EnhancedDashboard() {
       if (session?.user) {
         setUserId(session.user.id);
         setIsAuthenticated(true);
-        fetchTags(session.user.id);
+        fetchCategories();
       } else {
         setIsAuthenticated(false);
       }
@@ -68,26 +76,23 @@ export function EnhancedDashboard() {
       if (session?.user) {
         setUserId(session.user.id);
         setIsAuthenticated(true);
-        fetchTags(session.user.id);
+        fetchCategories();
       } else {
         setUserId(null);
         setIsAuthenticated(false);
-        setAvailableTags([]);
+        setAvailableCategories([]);
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchTags = async (uid: string) => {
+  const fetchCategories = async () => {
     try {
-      const response = await fetch(`${API_URL}/tags?userId=${uid}`);
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableTags(data.tags || []);
-      }
+      const cats = await getUserCategories();
+      setAvailableCategories(cats);
     } catch (err) {
-      console.error('Error fetching tags:', err);
+      console.error('Error fetching categories:', err);
     }
   };
 
@@ -125,6 +130,9 @@ export function EnhancedDashboard() {
             originalUrl: data.originalUrl,
             transcription: data.transcription
           });
+          if (data.generatedTags) {
+            setGeneratedTags(data.generatedTags);
+          }
           setCurrentStep('preview');
           eventSource.close();
         } else if (data.type === 'done') {
@@ -162,7 +170,8 @@ export function EnhancedDashboard() {
           url: editedContent.originalUrl,
           title: editedContent.title,
           markdown: editedContent.markdown,
-          tags: editedContent.tags.map(t => t.name),
+          tags: generatedTags, // Tags autogenerados por IA
+          categoryName: editedContent.category?.name, // Categoría seleccionada
           userId,
         }),
       });
@@ -204,33 +213,11 @@ export function EnhancedDashboard() {
     }
   };
 
-  const handleCreateTag = async (name: string): Promise<Tag> => {
-    if (!userId) {
-      throw new Error('Usuario no autenticado. Por favor, inicia sesión.');
-    }
-
-    const response = await fetch(`${API_URL}/tags`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        name,
-        color: getRandomColor(),
-      }),
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error || 'Error creando tag');
-    }
-
-    const data = await response.json();
-    const newTag = data.tag;
-
-    // Añadir a la lista disponible
-    setAvailableTags(prev => [...prev, newTag]);
-
-    return newTag;
+  const handleCreateCategory = async (name: string): Promise<Category> => {
+    const newCat = await createCategory(name);
+    if (!newCat) throw new Error('Error creating category');
+    await fetchCategories();
+    return newCat;
   };
 
   // Generar colores bonitos para tags
@@ -337,10 +324,10 @@ export function EnhancedDashboard() {
                 originalUrl: '',
               }
           }
-          availableTags={availableTags}
+          availableCategories={availableCategories} // Updated prop name
           onSave={handleSave}
           onCancel={handleCancelPreview}
-          onCreateTag={handleCreateTag}
+          onCreateCategory={handleCreateCategory} // Updated prop name
           isSaving={currentStep === 'saving'}
           isStreaming={currentStep === 'summarizing' || currentStep === 'analyzing'}
         />

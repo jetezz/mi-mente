@@ -347,9 +347,10 @@ const app = new Elysia()
           console.log('   [Step 3] Analizando puntos clave...');
           send({ type: 'status', step: 'analyzing', progress: 90 });
 
-          const [keyPoints, sentiment] = await Promise.all([
+          const [keyPoints, sentiment, generatedTags] = await Promise.all([
             aiClient.extractKeyPoints(transcription.text),
             aiClient.analyzeSentiment(transcription.text),
+            aiClient.generateTags(transcription.text),
           ]);
 
           // 4. Done
@@ -361,7 +362,8 @@ const app = new Elysia()
             sentiment,
             originalUrl: url,
             title: transcription.videoInfo?.title,
-            transcription: transcription.text
+            transcription: transcription.text,
+            generatedTags
           });
 
           send({ type: 'done' });
@@ -393,7 +395,7 @@ const app = new Elysia()
   .post('/process/save', async ({ body }) => {
     // Guarda el contenido EDITADO por el usuario en Notion
     // Soporta tanto Markdown como el formato legacy (summary + keyPoints)
-    const { url, title, summary, keyPoints, markdown, tags, userId } = body as {
+    const { url, title, summary, keyPoints, markdown, tags, userId, categoryName } = body as {
       url: string;
       title: string;
       summary?: string;
@@ -401,6 +403,7 @@ const app = new Elysia()
       markdown?: string;  // Nuevo: contenido en Markdown
       tags: string[];
       userId?: string;
+      categoryName?: string;
     };
 
     if (!url || !title) {
@@ -425,6 +428,7 @@ const app = new Elysia()
         title,
         markdown,
         tags: tags || [],
+        categoryName,
         sourceUrl: url,
       });
     } else {
@@ -443,6 +447,7 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
         title,
         markdown: legacyMarkdown,
         tags: tags || [],
+        categoryName,
         sourceUrl: url,
       });
     }
