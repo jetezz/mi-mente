@@ -15,10 +15,11 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 | **Fase 3** | Orquestador Bun (El Cerebro) | 🟡 80% |
 | **Fase 4** | Frontend Astro (La Cara) + Auth | 🟡 85% |
 | **Fase 5** | Chat con Notion (La Memoria) | ✅ 100% |
-| **Fase 6** | Motor Semántico Vectorial (El Cerebro 2.0) | ✅ 95% |
+| **Fase 6** | Motor Semántico Vectorial (El Cerebro 2.0) | ✅ 100% |
 | **Fase 7** | Streaming de Respuestas IA (Yield) | ✅ 100% |
 | **Fase 8** | Nuevo Flujo de Subida a Notion | ✅ 100% |
 | **Fase 9** | Unificación de Estilos UI | ✅ 100% |
+| **Fase 10** | Ajustes de Búsqueda Semántica | ✅ 100% |
 
 ---
 
@@ -412,6 +413,32 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [x] 9.6.4 Crear componente `EmptyState.tsx` para listas vacías
   - [x] 9.6.5 Crear componente `PageHeader.tsx` para títulos de página
   - [x] 9.6.6 Crear barrel export `ui/index.ts` para componentes
+
+---
+
+### ⚙️ Fase 10: Ajustes de Búsqueda Semántica ✅
+> **Objetivo:** Permitir ajustar el threshold de similitud y mostrar porcentaje de coincidencia en las respuestas.
+
+- [x] **10.1 Slider de Threshold Dinámico (Frontend)**
+  - [x] 10.1.1 Agregar estado `threshold` (0.1 - 0.9) en `ChatInterface.tsx`
+  - [x] 10.1.2 Crear slider con visualización de valor actual
+  - [x] 10.1.3 Tooltip explicativo sobre qué hace el threshold
+  - [x] 10.1.4 Persistir valor en localStorage
+
+- [x] **10.2 Soporte Backend para Threshold Dinámico**
+  - [x] 10.2.1 Modificar `useStreamingChat.ts` para aceptar threshold como parámetro
+  - [x] 10.2.2 Modificar endpoint `/ask/semantic/stream` para aceptar parámetro `threshold`
+  - [x] 10.2.3 Pasar threshold a `searchChunksOnly()` y `searchSimilarChunks()`
+
+- [x] **10.3 Mostrar Porcentaje de Coincidencia**
+  - [x] 10.3.1 Incluir `similarity` en respuesta de sources del streaming
+  - [x] 10.3.2 Mostrar porcentaje junto a cada fuente en `ChatMessage`
+  - [x] 10.3.3 Estilizar con colores según nivel (verde: >70%, amarillo: 50-70%, rojo: <50%)
+
+- [x] **10.4 Correcciones de UX**
+  - [x] 10.4.1 Arreglar scroll de `/chat` que inicia a mitad de página
+  - [x] 10.4.2 Limpiar console.logs de debug del backend
+  - [x] 10.4.3 Mejorar mensaje cuando no hay contenido indexado
 
 ---
 

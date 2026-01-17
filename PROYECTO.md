@@ -867,7 +867,80 @@ docker-compose logs -f
 docker-compose down && docker-compose up -d
 ```
 
+
 **Referencias y Recursos:**
 *   **Video Midudev:** Implementación de rotación de claves API para IA gratuita.
 *   **Faster-Whisper:** [GitHub](https://github.com/SYSTRAN/faster-whisper)
 *   **Astro + Supabase:** Guías oficiales de integración SSR.
+
+---
+
+## 10. Fase 10: Ajustes de Búsqueda Semántica
+
+> **Objetivo:** Permitir ajustar dinámicamente el threshold de similitud y mostrar porcentaje de coincidencia en las respuestas.
+
+### 10.1 Visión General
+
+La búsqueda semántica utiliza un **threshold de similitud** para determinar qué chunks son relevantes. Un threshold más bajo captura más resultados (pero menos precisos), mientras que uno más alto es más selectivo.
+
+### 10.2 Cambios Implementados
+
+#### A. Frontend (`ChatInterface.tsx`)
+```typescript
+// Estado para threshold dinámico
+const [threshold, setThreshold] = useState(() => {
+  const saved = localStorage.getItem('semanticThreshold');
+  return saved ? parseFloat(saved) : 0.5;
+});
+
+// Slider de control
+<input
+  type="range"
+  min="0.1"
+  max="0.9"
+  step="0.1"
+  value={threshold}
+  onChange={(e) => setThreshold(parseFloat(e.target.value))}
+/>
+```
+
+#### B. Hook de Streaming (`useStreamingChat.ts`)
+```typescript
+// Añadir threshold a las opciones
+interface UseStreamingChatOptions {
+  threshold?: number;  // 0.1 - 0.9
+}
+
+// Pasar al endpoint
+params.append('threshold', String(threshold));
+```
+
+#### C. Backend (`index.ts`)
+```typescript
+.get('/ask/semantic/stream', async function* ({ query }) {
+  const threshold = parseFloat(query.threshold as string) || 0.5;
+  
+  const chunks = await semanticSearch.searchChunksOnly(userId, question, {
+    similarityThreshold: threshold,
+  });
+})
+```
+
+### 10.3 Visualización de Similitud
+
+Las fuentes muestran el porcentaje de coincidencia con colores indicativos:
+- 🟢 **Verde (>70%):** Alta relevancia
+- 🟡 **Amarillo (50-70%):** Relevancia moderada  
+- 🔴 **Rojo (<50%):** Baja relevancia
+
+```typescript
+function getSimilarityColor(similarity: number): string {
+  if (similarity >= 0.7) return 'text-green-400';
+  if (similarity >= 0.5) return 'text-yellow-400';
+  return 'text-red-400';
+}
+```
+
+### 10.4 Persistencia
+
+El valor del threshold se guarda en `localStorage` para mantener preferencias del usuario entre sesiones.

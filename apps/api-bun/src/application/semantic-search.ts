@@ -47,7 +47,7 @@ interface SearchOptions {
 export class SemanticSearch {
   private supabase: SupabaseClient | null = null;
   private readonly DEFAULT_MAX_CHUNKS = 5;
-  private readonly DEFAULT_THRESHOLD = 0.7;
+  private readonly DEFAULT_THRESHOLD = 0.5; // Reducido de 0.7 para ser más permisivo
   private readonly MAX_CONTEXT_CHARS = 30000; // ~7500 tokens
 
   constructor() {
@@ -100,8 +100,9 @@ export class SemanticSearch {
     );
 
     if (chunks.length === 0) {
+      console.log('   ⚠️ [SemanticSearch] Sin resultados - El contenido probablemente no está indexado');
       return {
-        answer: 'No encontré información relevante en tu base de conocimiento indexada. Asegúrate de haber indexado contenido relacionado con tu pregunta.',
+        answer: '⚠️ **No se encontró contenido indexado.**\n\nPosibles causas:\n1. No has indexado tu contenido aún\n2. El contenido indexado no está relacionado con tu pregunta\n\n**Solución:** Ve a la página de **Indexación** y sincroniza tu contenido de Notion para poder usar la búsqueda semántica.',
         sources: [],
         metadata: {
           tokensUsed: 0,
@@ -155,7 +156,7 @@ export class SemanticSearch {
     const threshold = options.similarityThreshold || this.DEFAULT_THRESHOLD;
 
     try {
-      // Usar la función SQL match_chunks que creamos
+      // Usar la función SQL match_chunks
       const { data, error } = await this.supabase.rpc('match_chunks', {
         query_embedding: embedding,
         match_threshold: threshold,
@@ -165,8 +166,6 @@ export class SemanticSearch {
       });
 
       if (error) {
-        console.error('Error en match_chunks:', error);
-
         // Fallback: Query directo sin RPC
         return this.searchChunksDirect(userId, embedding, maxChunks, threshold, options.categoryIds);
       }

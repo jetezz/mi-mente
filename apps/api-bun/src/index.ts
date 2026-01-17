@@ -1091,6 +1091,7 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
     const question = query.question as string;
     const categoryId = query.categoryId as string | undefined;
     const maxChunks = parseInt(query.maxChunks as string) || 5;
+    const threshold = parseFloat(query.threshold as string) || 0.5;
 
     if (!userId) {
       yield `data: ${JSON.stringify({ type: 'error', error: 'userId es requerido' })}\n\n`;
@@ -1102,7 +1103,7 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
       return;
     }
 
-    console.log(`\n🔄 [Stream Semantic] "${question.slice(0, 50)}..."`);
+    console.log(`\n🔄 [Stream Semantic] "${question.slice(0, 50)}..." (threshold: ${threshold})`);
 
     // Emitir inicio
     yield `data: ${JSON.stringify({ type: 'start', timestamp: Date.now() })}\n\n`;
@@ -1117,21 +1118,32 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
       let categoryIds: string[] | undefined;
       if (categoryId) {
         categoryIds = await supabaseService.getCategoryWithDescendants(categoryId);
+        console.log(`   📁 Categorías expandidas: ${JSON.stringify(categoryIds)}`);
       }
 
       // Buscar chunks relevantes
+      // Buscar chunks relevantes con threshold dinámico
       const chunks = await semanticSearch.searchChunksOnly(userId, question, {
         categoryIds,
         maxChunks,
+        similarityThreshold: threshold,
       });
 
-      // Emitir fuentes (chunks encontrados)
+      // Si no hay chunks, notificar y terminar
+      if (chunks.length === 0) {
+        yield `data: ${JSON.stringify({ type: 'sources', sources: [] })}\n\n`;
+        yield `data: ${JSON.stringify({ type: 'token', content: '⚠️ **No se encontró contenido relevante.**\n\nPosibles causas:\n1. No has indexado tu contenido aún\n2. El umbral de similitud es muy alto (prueba bajarlo)\n3. El contenido indexado no está relacionado con tu pregunta\n\n**Solución:** Ve a **Indexación** para sincronizar o ajusta el umbral con ⚙️' })}\n\n`;
+        yield `data: ${JSON.stringify({ type: 'done', method: 'semantic', tokensUsed: 0, provider: 'none', chunksUsed: 0 })}\n\n`;
+        return;
+      }
+
+      // Emitir fuentes (chunks encontrados) - generar URL de Notion
       yield `data: ${JSON.stringify({
         type: 'sources',
         sources: chunks.map(c => ({
           id: c.pageId,
           title: c.pageTitle,
-          notionUrl: c.notionUrl,
+          notionUrl: `https://notion.so/${c.notionPageId.replace(/-/g, '')}`,
           similarity: c.similarity,
           excerpt: c.content.slice(0, 200)
         }))

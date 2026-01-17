@@ -34,18 +34,41 @@ interface Category {
   parent_id: string | null;
 }
 
+// Función para obtener color según similitud
+function getSimilarityColor(similarity: number): string {
+  if (similarity >= 0.7) return 'text-green-400';
+  if (similarity >= 0.5) return 'text-yellow-400';
+  return 'text-red-400';
+}
+
+// Función para obtener badge de similitud
+function getSimilarityBadge(similarity: number): string {
+  if (similarity >= 0.7) return 'bg-green-500/20 border-green-500/30';
+  if (similarity >= 0.5) return 'bg-yellow-500/20 border-yellow-500/30';
+  return 'bg-red-500/20 border-red-500/30';
+}
+
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  // isLoading is now derived from isStreaming for UI states, but we might keep it for initial setup
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [useSemanticSearch, setUseSemanticSearch] = useState(true);
+  const [threshold, setThreshold] = useState(() => {
+    // Recuperar threshold de localStorage o usar default
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('semanticThreshold');
+      return saved ? parseFloat(saved) : 0.5;
+    }
+    return 0.5;
+  });
+  const [showThresholdSlider, setShowThresholdSlider] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Streaming Hook
+  // Streaming Hook con threshold
   const {
     startStream,
     isStreaming,
@@ -56,7 +79,8 @@ export function ChatInterface() {
     reset: resetStream
   } = useStreamingChat({
     userId: userId || undefined,
-    useSemantic: useSemanticSearch
+    useSemantic: useSemanticSearch,
+    threshold
   });
 
   // Verificar autenticación y cargar categorías
@@ -84,13 +108,18 @@ export function ChatInterface() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Guardar threshold en localStorage cuando cambie
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('semanticThreshold', String(threshold));
+    }
+  }, [threshold]);
+
   // Efecto para manejar el fin del streaming y guardar el mensaje
-  // Usamos una ref para trackear si estabamos streameando
   const wasStreamingRef = useRef(false);
 
   useEffect(() => {
     if (wasStreamingRef.current && !isStreaming) {
-      // El stream acaba de terminar
       if (streamedContent) {
         const assistantMessage: Message = {
           id: Date.now().toString(),
@@ -114,10 +143,11 @@ export function ChatInterface() {
     wasStreamingRef.current = isStreaming;
   }, [isStreaming, streamedContent, sources, metadata, streamError, resetStream]);
 
-
-  // Scroll al último mensaje (o al flujo actual)
+  // Scroll al último mensaje - solo cuando hay mensajes nuevos
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0 || isStreaming) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, streamedContent, isStreaming]);
 
   const fetchCategories = async () => {
@@ -125,7 +155,7 @@ export function ChatInterface() {
       const cats = await getUserCategories();
       setCategories(cats);
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      // Silenciar errores de categorías
     }
   };
 
@@ -142,8 +172,8 @@ export function ChatInterface() {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
 
-    // Iniciar streaming
-    startStream(input, selectedCategory?.id);
+    // Iniciar streaming con threshold actual
+    startStream(input, selectedCategory?.id, threshold);
   };
 
   const clearChat = () => {
@@ -161,10 +191,12 @@ export function ChatInterface() {
             <h2 className="text-lg font-semibold text-dark-100">Chat con tu Cerebro</h2>
             <p className="text-xs text-dark-500">
               {useSemanticSearch ? '🔮 Búsqueda Semántica' : '📄 Búsqueda Directa en Notion'}
+              {useSemanticSearch && <span className="ml-2 text-primary-400">({Math.round(threshold * 100)}% min)</span>}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {/* Toggle Semántico */}
           <button
             onClick={() => setUseSemanticSearch(!useSemanticSearch)}
             className={`p-2 rounded-lg transition-colors ${useSemanticSearch
@@ -175,6 +207,21 @@ export function ChatInterface() {
           >
             {useSemanticSearch ? '🔮' : '📄'}
           </button>
+
+          {/* Botón de ajustes de threshold */}
+          {useSemanticSearch && (
+            <button
+              onClick={() => setShowThresholdSlider(!showThresholdSlider)}
+              className={`p-2 rounded-lg transition-colors ${showThresholdSlider
+                ? 'bg-accent-cyan/20 text-accent-cyan'
+                : 'bg-dark-700 text-dark-400'
+                }`}
+              title="Ajustar umbral de similitud"
+            >
+              ⚙️
+            </button>
+          )}
+
           <CategorySelector
             categories={categories}
             selected={selectedCategory}
@@ -194,8 +241,32 @@ export function ChatInterface() {
         </div>
       </div>
 
+      {/* Slider de Threshold (condicional) */}
+      {showThresholdSlider && useSemanticSearch && (
+        <div className="px-4 py-3 bg-dark-800/50 border-b border-dark-700">
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-dark-400 whitespace-nowrap">Umbral de similitud:</span>
+            <input
+              type="range"
+              min="0.1"
+              max="0.9"
+              step="0.1"
+              value={threshold}
+              onChange={(e) => setThreshold(parseFloat(e.target.value))}
+              className="flex-1 h-2 bg-dark-600 rounded-lg appearance-none cursor-pointer accent-primary-500"
+            />
+            <span className={`text-sm font-mono px-2 py-1 rounded ${getSimilarityBadge(threshold)} ${getSimilarityColor(threshold)}`}>
+              {Math.round(threshold * 100)}%
+            </span>
+          </div>
+          <p className="text-xs text-dark-500 mt-2">
+            💡 Menor umbral = más resultados pero menos precisos. Mayor umbral = menos resultados pero más relevantes.
+          </p>
+        </div>
+      )}
+
       {/* Área de mensajes */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="text-6xl mb-4">🎯</div>
@@ -284,7 +355,7 @@ export function ChatInterface() {
   );
 }
 
-// Componente de mensaje individual
+// Componente de mensaje individual con porcentaje de similitud
 function ChatMessage({ message, isStreaming = false }: { message: Message; isStreaming?: boolean }) {
   const isUser = message.role === 'user';
 
@@ -313,7 +384,7 @@ function ChatMessage({ message, isStreaming = false }: { message: Message; isStr
           />
         </div>
 
-        {/* Fuentes - Mostrar incluso durante streaming si llegan */}
+        {/* Fuentes con porcentaje de similitud */}
         {message.sources && message.sources.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             <span className="text-xs text-dark-500">Fuentes:</span>
@@ -323,10 +394,15 @@ function ChatMessage({ message, isStreaming = false }: { message: Message; isStr
                 href={source.notionUrl || source.url || '#'}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs px-2 py-1 rounded-full bg-dark-700 text-primary-400 hover:bg-dark-600 transition-colors flex items-center gap-1"
+                className={`text-xs px-2 py-1 rounded-full border transition-colors flex items-center gap-1 ${getSimilarityBadge(source.similarity || 0)}`}
                 title={source.excerpts?.[0] || source.title}
               >
-                📄 {source.title.slice(0, 25)}{source.title.length > 25 ? '...' : ''}
+                📄 {source.title.slice(0, 20)}{source.title.length > 20 ? '...' : ''}
+                {source.similarity !== undefined && (
+                  <span className={`ml-1 font-mono ${getSimilarityColor(source.similarity)}`}>
+                    {Math.round(source.similarity * 100)}%
+                  </span>
+                )}
               </a>
             ))}
           </div>

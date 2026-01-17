@@ -25,13 +25,15 @@ interface UseStreamingChatOptions {
   apiUrl?: string;
   useSemantic?: boolean;
   userId?: string;
+  threshold?: number;
 }
 
 export function useStreamingChat(options: UseStreamingChatOptions = {}) {
   const {
     apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000',
     useSemantic = true,
-    userId
+    userId,
+    threshold = 0.5
   } = options;
 
   const [isStreaming, setIsStreaming] = useState(false);
@@ -44,7 +46,8 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
 
   const startStream = useCallback(async (
     question: string,
-    categoryId?: string
+    categoryId?: string,
+    customThreshold?: number
   ) => {
     // Cancelar stream anterior si existe
     if (abortControllerRef.current) {
@@ -69,6 +72,8 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
       let endpoint: string;
       if (useSemantic && userId) {
         params.append('userId', userId);
+        // Usar threshold personalizado si se proporciona, sino el default de options
+        params.append('threshold', String(customThreshold ?? threshold));
         endpoint = `${apiUrl}/ask/semantic/stream?${params}`;
       } else {
         endpoint = `${apiUrl}/ask/stream?${params}`;
@@ -146,7 +151,7 @@ export function useStreamingChat(options: UseStreamingChatOptions = {}) {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, [apiUrl, useSemantic, userId]);
+  }, [apiUrl, useSemantic, userId, threshold]);
 
   const stopStream = useCallback(() => {
     if (abortControllerRef.current) {
