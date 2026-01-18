@@ -433,3 +433,60 @@ CREATE POLICY "Users can delete own page_tags" ON page_tags
 --    - Prueba la función match_chunks() con un embedding de prueba
 --
 -- ============================================================
+
+-- ============================================================
+-- FASE 9: SISTEMA DE CONFIGURACIÓN GLOBAL (SETTINGS)
+-- ============================================================
+
+-- ============ TABLA APP_SETTINGS ============
+-- Almacena configuraciones globales y valores por defecto del sistema
+-- key: Clave única de configuración (ej: 'ai.default_model')
+-- value: Valor en formato JSONB para flexibilidad (string, number, object)
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  description TEXT,
+  category VARCHAR(50), -- 'ai', 'ui', 'system', 'search', 'debug'
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Trigger para updated_at
+DROP TRIGGER IF EXISTS app_settings_updated_at ON app_settings;
+CREATE TRIGGER app_settings_updated_at
+  BEFORE UPDATE ON app_settings
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at();
+
+-- Habilitar RLS
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+
+-- Políticas RLS (Lectura pública para auth users, Escritura solo admin o todos por ahora en dev)
+-- Asumimos que cualquier usuario autenticado puede leer la configuración del sistema
+CREATE POLICY "Authenticated users can view settings" ON app_settings
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Permitir modificar settings a usuarios autenticados (Idealmente solo admin)
+CREATE POLICY "Authenticated users can update settings" ON app_settings
+  FOR UPDATE USING (auth.role() = 'authenticated');
+  
+CREATE POLICY "Authenticated users can insert settings" ON app_settings
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- ============ DATOS INICIALES (SEED) ============
+-- Insertar valores por defecto si no existen
+
+INSERT INTO app_settings (key, value, description, category)
+VALUES 
+  ('ai.default_model', '"llama-3.3-70b-versatile"', 'Modelo de IA por defecto para chat y resumen', 'ai'),
+  ('ai.default_temperature', '0.7', 'Temperatura por defecto para generación', 'ai'),
+  ('search.default_threshold', '0.5', 'Umbral mínimo de similitud para búsqueda semántica', 'search'),
+  ('search.max_chunks', '5', 'Número máximo de chunks a recuperar', 'search'),
+  ('debug.default_user_id', '"b0808906-883f-40d5-a1e3-d510a1ae82b7"', 'ID de usuario por defecto para pruebas y debug', 'debug'),
+  ('debug.default_youtube_url', '"https://www.youtube.com/watch?v=yGhu5p29r8U"', 'URL de YouTube por defecto para pruebas', 'debug'),
+  ('ai.prompt.summary', '"Eres un experto en crear resúmenes concisos y útiles. Tu tarea es resumir el siguiente contenido manteniendo los puntos más importantes. El resumen debe ser: En español, Entre 150-300 palabras, Capturar la esencia del contenido, Usar un tono profesional pero accesible"', 'Prompt del sistema para generación de resúmenes', 'ai'),
+  ('ai.prompt.keypoints', '"Eres un experto en análisis de contenido. Tu tarea es extraer los puntos clave más importantes del texto. Responde SOLO con un JSON array de strings, máximo 7 puntos."', 'Prompt del sistema para extracción de puntos clave', 'ai'),
+  ('ai.prompt.tags', '"Eres un experto en categorización de contenido. Genera etiquetas relevantes para clasificar el contenido. Responde SOLO con un JSON array de strings, máximo 5 tags. Los tags deben ser palabras simples en español, sin #."', 'Prompt del sistema para generación de tags', 'ai'),
+  ('ai.prompt.chat', '"Eres un asistente de conocimiento personal. Responde basándote ÚNICAMENTE en el siguiente contexto de documentos indexados. Si la respuesta no está en el contexto, indica que no tienes esa información."', 'Prompt del sistema para chat con RAG', 'ai')
+ON CONFLICT (key) DO NOTHING;
+

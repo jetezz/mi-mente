@@ -1,0 +1,53 @@
+---
+/**
+ * Settings Page
+ */
+import AppLayout from '../layouts/AppLayout.astro';
+import SettingsEditor from '../components/SettingsEditor';
+import { PageHeader } from '../components/ui/PageHeader';
+import { TipsCard } from '../components/ui/SidebarCard';
+import { QuickActions } from '../components/ui/QuickActions';
+
+---
+
+<AppLayout 
+  title="Settings - Hybrid Brain 🧠" 
+  description="Configuraciones globales del sistema"
+>
+  <!-- Page Header -->
+  <Fragment slot="header">
+    <PageHeader
+      title="Configuración"
+      subtitle="Gestiona variables globales, prompts y parámetros del sistema."
+      icon="⚙️"
+      client:load
+    />
+  </Fragment>
+
+  <!-- Main Content -->
+  <Fragment slot="main">
+    <SettingsEditor client:only="react" />
+  </Fragment>
+
+  <!-- Sidebar -->
+  <Fragment slot="sidebar">
+    <TipsCard 
+      tips={[
+        "Los cambios en los prompts afectan inmediatamente a nueva generaciones.",
+        "Los parámetros de búsqueda (chunk count, threshold) afectan la calidad del RAG.",
+        "Guarda con cuidado; un JSON inválido puede romper funcionalidades.",
+        "Usa 'debug.default_user_id' para tus pruebas."
+      ]}
+      client:load
+    />
+
+    <QuickActions
+      actions={[
+        { icon: "📥", label: "Dashboard", href: "/dashboard" },
+        { icon: "💬", label: "Chat con tu cerebro", href: "/chat" },
+        { icon: "🧪", label: "Debug Page", href: "/debug" }
+      ]}
+      client:load
+    />
+  </Fragment>
+</AppLayout>

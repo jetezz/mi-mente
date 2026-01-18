@@ -13,6 +13,7 @@
 import { aiClient } from '../infrastructure/ai-client';
 import { notionReader } from '../infrastructure/notion-reader';
 import { supabaseService } from '../infrastructure/supabase-client';
+import { settingsService } from './settings-service';
 
 interface AskRequest {
   question: string;
@@ -41,14 +42,14 @@ interface AskResponse {
 
 export class AskBrainUseCase {
   private readonly MAX_CONTEXT_CHARS = 30000; // ~7500 tokens aprox
-  private readonly DEFAULT_MAX_SOURCES = 5;
+
 
   /**
    * Ejecuta la consulta RAG
    */
   async execute(request: AskRequest): Promise<AskResponse> {
     const startTime = Date.now();
-    const maxSources = request.maxSources || this.DEFAULT_MAX_SOURCES;
+    const maxSources = request.maxSources || await settingsService.get('search.max_sources', 5);
 
     console.log(`\n🧠 Ask Brain: "${request.question.slice(0, 50)}..."`);
 
@@ -102,13 +103,13 @@ export class AskBrainUseCase {
       id: p.id,
       title: p.title,
       url: p.url,
-      category: p.category,
+      category: p.categories?.[0],
     }));
 
     console.log(`   📝 Contexto: ${context.length} caracteres`);
 
     // ============ PASO 4: Generar respuesta con IA ============
-    const systemPrompt = this.buildSystemPrompt(categoryNames);
+    const systemPrompt = await this.buildSystemPrompt(categoryNames);
     const userPrompt = this.buildUserPrompt(request.question, context);
 
     const aiResponse = await aiClient.chat([
@@ -117,7 +118,7 @@ export class AskBrainUseCase {
     ]);
 
     const processingTimeMs = Date.now() - startTime;
-    console.log(`   ✅ Respuesta generada en ${processingTimeMs}ms`);
+    console.log(`   ✅ Respuesta generada en ${processingTimeMs} ms`);
 
     return {
       answer: aiResponse.content,
@@ -141,7 +142,7 @@ export class AskBrainUseCase {
     userPrompt: string;
     contextLength: number;
   }> {
-    const maxSources = request.maxSources || this.DEFAULT_MAX_SOURCES;
+    const maxSources = request.maxSources || await settingsService.get('search.max_sources', 5);
 
     // Resolver categorías
     let categoryNames: string[] = [];
@@ -169,12 +170,12 @@ export class AskBrainUseCase {
       id: p.id,
       title: p.title,
       url: p.url,
-      category: p.category,
+      category: p.categories?.[0],
     }));
 
     return {
       sources,
-      systemPrompt: this.buildSystemPrompt(categoryNames),
+      systemPrompt: await this.buildSystemPrompt(categoryNames),
       userPrompt: this.buildUserPrompt(request.question, context),
       contextLength: context.length,
     };
@@ -188,13 +189,13 @@ export class AskBrainUseCase {
 
     for (const page of pages) {
       const pageSection = `
-=== ${page.title} ${page.category ? `[${page.category}]` : ''} ===
-${page.content}
+  === ${page.title} ${page.category ? `[${page.category}]` : ''} ===
+    ${page.content}
 `;
 
       // Verificar límite de contexto
       if ((context + pageSection).length > this.MAX_CONTEXT_CHARS) {
-        console.log(`   ⚠️ Contexto truncado (límite: ${this.MAX_CONTEXT_CHARS} chars)`);
+        console.log(`   ⚠️ Contexto truncado(límite: ${this.MAX_CONTEXT_CHARS} chars)`);
         break;
       }
 
@@ -207,14 +208,14 @@ ${page.content}
   /**
    * System prompt optimizado para RAG
    */
-  private buildSystemPrompt(categoryNames: string[]): string {
+  private async buildSystemPrompt(categoryNames: string[]): Promise<string> {
     const categoryContext = categoryNames.length > 0
       ? `El usuario está preguntando específicamente sobre: ${categoryNames.join(', ')}.`
       : 'El usuario está preguntando sobre cualquier tema de su base de conocimiento.';
 
-    return `Eres un asistente experto que responde preguntas basándose EXCLUSIVAMENTE en el contexto proporcionado.
+    const defaultPrompt = `Eres un asistente experto que responde preguntas basándose EXCLUSIVAMENTE en el contexto proporcionado.
 
-${categoryContext}
+  ${categoryContext}
 
 REGLAS IMPORTANTES:
 1. SOLO usa información del contexto proporcionado
@@ -223,7 +224,9 @@ REGLAS IMPORTANTES:
 4. Responde en español
 5. Sé conciso pero completo
 6. Si hay información contradictoria, menciona ambas perspectivas
-7. Formatea la respuesta con Markdown cuando sea útil (listas, negritas, etc.)`;
+7. Formatea la respuesta con Markdown cuando sea útil(listas, negritas, etc.)`;
+
+    return await settingsService.get('ai.prompt.rag', defaultPrompt);
   }
 
   /**
@@ -232,10 +235,10 @@ REGLAS IMPORTANTES:
   private buildUserPrompt(question: string, context: string): string {
     return `CONTEXTO DE TU BASE DE CONOCIMIENTO:
 ---
-${context}
+  ${context}
 ---
 
-PREGUNTA: ${question}
+  PREGUNTA: ${question}
 
 Responde basándote ÚNICAMENTE en el contexto anterior.`;
   }
@@ -270,13 +273,13 @@ Responde basándote ÚNICAMENTE en el contexto anterior.`;
       id: p.id,
       title: p.title,
       url: p.url,
-      category: p.category,
+      category: p.categories?.[0],
     }));
 
     // Construir mensajes con historial
     const messages = [
-      { role: 'system' as const, content: this.buildSystemPrompt(categoryNames) },
-      { role: 'user' as const, content: `CONTEXTO:\n${context}\n---\nRecuerda responder SOLO con base en este contexto.` },
+      { role: 'system' as const, content: await this.buildSystemPrompt(categoryNames) },
+      { role: 'user' as const, content: `CONTEXTO: \n${context} \n-- -\nRecuerda responder SOLO con base en este contexto.` },
       ...history.map(h => ({ role: h.role, content: h.content })),
       { role: 'user' as const, content: question },
     ];

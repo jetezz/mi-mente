@@ -6,6 +6,7 @@
 
 import { embeddingClient } from '../infrastructure/embedding-client';
 import { aiClient } from '../infrastructure/ai-client';
+import { settingsService } from './settings-service';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 interface SearchResult {
@@ -46,8 +47,7 @@ interface SearchOptions {
 
 export class SemanticSearch {
   private supabase: SupabaseClient | null = null;
-  private readonly DEFAULT_MAX_CHUNKS = 5;
-  private readonly DEFAULT_THRESHOLD = 0.5; // Reducido de 0.7 para ser más permisivo
+  // Defaults now handled by settingsService
   private readonly MAX_CONTEXT_CHARS = 30000; // ~7500 tokens
 
   constructor() {
@@ -152,8 +152,8 @@ export class SemanticSearch {
   ): Promise<SearchResult[]> {
     if (!this.supabase) return [];
 
-    const maxChunks = options.maxChunks || this.DEFAULT_MAX_CHUNKS;
-    const threshold = options.similarityThreshold || this.DEFAULT_THRESHOLD;
+    const maxChunks = options.maxChunks || await settingsService.get('search.max_chunks', 5);
+    const threshold = options.similarityThreshold || await settingsService.get('search.default_threshold', 0.5);
 
     try {
       // Usar la función SQL match_chunks
@@ -353,7 +353,7 @@ export class SemanticSearch {
       ? 'El usuario ha filtrado por categorías específicas.'
       : 'El usuario está buscando en toda su base de conocimiento.';
 
-    const systemPrompt = `Eres un asistente experto que responde preguntas basándose EXCLUSIVAMENTE en el contexto proporcionado.
+    const defaultSystemPrompt = `Eres un asistente experto que responde preguntas basándose EXCLUSIVAMENTE en el contexto proporcionado.
 
 ${categoryNote}
 
@@ -365,6 +365,8 @@ REGLAS IMPORTANTES:
 5. Sé conciso pero completo
 6. Si hay información de múltiples fuentes, sintetízala de forma coherente
 7. Usa Markdown para formatear (listas, negritas, encabezados cuando sea útil)`;
+
+    const systemPrompt = await settingsService.get('ai.prompt.chat', defaultSystemPrompt);
 
     const userPrompt = `CONTEXTO RECUPERADO SEMÁNTICAMENTE:
 ---

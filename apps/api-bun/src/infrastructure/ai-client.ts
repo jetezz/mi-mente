@@ -3,6 +3,7 @@
  * Implementa estrategia Round-Robin para rotación entre proveedores de IA
  * Soporta: Groq (Llama 3) y Cerebras
  */
+import { settingsService } from '../application/settings-service';
 
 interface AIProvider {
   name: string;
@@ -230,18 +231,20 @@ export class AIClient {
     tokensUsed?: number;
     provider?: string;
   }> {
-    const systemContent = customPrompt
-      ? `Eres un experto en crear resúmenes concisos y útiles.
-${customPrompt}
-
-El resumen debe ser en español y capturar la esencia del contenido.`
-      : `Eres un experto en crear resúmenes concisos y útiles.
+    const defaultPrompt = `Eres un experto en crear resúmenes concisos y útiles.
 Tu tarea es resumir el siguiente contenido manteniendo los puntos más importantes.
 El resumen debe ser:
 - En español
 - Entre 150-300 palabras
 - Capturar la esencia del contenido
 - Usar un tono profesional pero accesible`;
+
+    const systemContent = customPrompt
+      ? `Eres un experto en crear resúmenes concisos y útiles.
+${customPrompt}
+
+El resumen debe ser en español y capturar la esencia del contenido.`
+      : await settingsService.get('ai.prompt.summary', defaultPrompt);
 
     const messages: ChatMessage[] = [
       { role: 'system', content: systemContent },
@@ -326,13 +329,13 @@ El resumen debe ser:
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `Eres un experto en crear resúmenes concisos y útiles. 
+        content: await settingsService.get('ai.prompt.summary', `Eres un experto en crear resúmenes concisos y útiles. 
 Tu tarea es resumir el siguiente contenido manteniendo los puntos más importantes.
 El resumen debe ser:
 - En español
 - Entre 150-300 palabras
 - Capturar la esencia del contenido
-- Usar un tono profesional pero accesible`
+- Usar un tono profesional pero accesible`)
       },
       {
         role: 'user',
@@ -351,10 +354,10 @@ El resumen debe ser:
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `Eres un experto en análisis de contenido.
+        content: await settingsService.get('ai.prompt.keypoints', `Eres un experto en análisis de contenido.
 Tu tarea es extraer los puntos clave más importantes del texto.
 Responde SOLO con un JSON array de strings, máximo 7 puntos.
-Ejemplo: ["Punto 1", "Punto 2", "Punto 3"]`
+Ejemplo: ["Punto 1", "Punto 2", "Punto 3"]`)
       },
       {
         role: 'user',
@@ -388,11 +391,11 @@ Ejemplo: ["Punto 1", "Punto 2", "Punto 3"]`
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `Eres un experto en categorización de contenido.
+        content: await settingsService.get('ai.prompt.tags', `Eres un experto en categorización de contenido.
 Genera etiquetas relevantes para clasificar el contenido.
 Responde SOLO con un JSON array de strings, máximo 5 tags.
 Los tags deben ser palabras simples en español, sin #.
-Ejemplo: ["tecnología", "programación", "IA"]`
+Ejemplo: ["tecnología", "programación", "IA"]`)
       },
       {
         role: 'user',
@@ -425,8 +428,8 @@ Ejemplo: ["tecnología", "programación", "IA"]`
     const messages: ChatMessage[] = [
       {
         role: 'system',
-        content: `Analiza el sentimiento general del texto.
-Responde SOLO con una de estas palabras: positive, negative, neutral`
+        content: await settingsService.get('ai.prompt.sentiment', `Analiza el sentimiento general del texto.
+Responde SOLO con una de estas palabras: positive, negative, neutral`)
       },
       {
         role: 'user',

@@ -769,6 +769,35 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
     };
   })
 
+  // ============ ⚙️ Settings (Global Config) ============
+
+  .get('/settings', async () => {
+    const { settingsService } = await import('./application/settings-service');
+    const settings = await settingsService.getSettingsList();
+    return {
+      success: true,
+      settings
+    };
+  })
+
+  .put('/settings/:key', async ({ params, body }) => {
+    const { key } = params;
+    const { value } = body as { value: any };
+
+    const { settingsService } = await import('./application/settings-service');
+    const updated = await settingsService.update(key, value);
+
+    if (!updated) {
+      throw new Error(`No se pudo actualizar la configuración: ${key}`);
+    }
+
+    return {
+      success: true,
+      key,
+      value
+    };
+  })
+
   // ============ 🔮 Fase 6: Indexación y Búsqueda Semántica ============
 
   .post('/index/trigger', async ({ body }) => {

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { AppSetting } from '../types';
 import { CategorySelector } from './CategorySelector';
 import { supabase, getUserCategories } from '../lib/supabase';
 import { useStreamingChat } from '../hooks/useStreamingChat';
@@ -64,6 +65,25 @@ export function ChatInterface() {
     }
     return 0.5;
   });
+
+  // Fetch default settings if no local override
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (typeof window !== 'undefined' && !localStorage.getItem('semanticThreshold')) {
+        try {
+          // Use same URL strategy as useStreamingChat
+          const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+          const res = await fetch(`${apiUrl}/settings`);
+          const data = await res.json();
+          const setting = data.settings?.find((s: AppSetting) => s.key === 'search.default_threshold');
+          if (setting) setThreshold(Number(setting.value));
+        } catch (e) {
+          // Ignore errors, stay with default
+        }
+      }
+    };
+    fetchSettings();
+  }, []);
   const [showThresholdSlider, setShowThresholdSlider] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);

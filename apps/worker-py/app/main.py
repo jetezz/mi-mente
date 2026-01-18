@@ -300,12 +300,41 @@ async def cleanup_temp_files(max_age_hours: int = 24):
 
 # ================== Eventos de Lifecycle ==================
 
+# ... (previous code)
+
+import requests
+import os
+
+# ... (other imports)
+
 @app.on_event("startup")
 async def startup_event():
     """Evento de inicio de la aplicación."""
     logger.info("🧠 Hybrid Brain Worker iniciado")
     logger.info(f"📁 Directorio de descargas: {youtube_downloader.output_dir}")
-
+    
+    # Cargar configuraciones dinámicas
+    try:
+        api_url = os.getenv('API_URL', 'http://api-bun:3000')
+        logger.info(f"Fetching settings from {api_url}/settings...")
+        
+        # Timeout corto para no bloquear demasiado el inicio si el API no está lista
+        response = requests.get(f"{api_url}/settings", timeout=2)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success'):
+                settings = {s['key']: s['value'] for s in data.get('settings', [])}
+                
+                # Actualizar Whisper DEFAULT_MODEL
+                default_model = settings.get('transcription.default_model')
+                if default_model:
+                    WhisperTranscriber.DEFAULT_MODEL = default_model
+                    logger.info(f"✅ Configuración actualizada: Whisper DEFAULT_MODEL = {default_model}")
+                    
+    except Exception as e:
+        logger.warning(f"⚠️ No se pudieron cargar configuraciones del API: {e}")
+        logger.warning("Usando valores por defecto.")
 
 @app.on_event("shutdown")
 async def shutdown_event():

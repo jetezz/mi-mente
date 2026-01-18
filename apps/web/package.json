@@ -10,24 +10,28 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "latest",
-    "react": "latest",
-    "react-dom": "latest",
+    "@astrojs/node": "latest",
     "@astrojs/react": "latest",
     "@astrojs/tailwind": "latest",
-    "@astrojs/node": "latest",
-    "@supabase/supabase-js": "^2.39.0",
-    "tailwindcss": "^3.4.1",
-    "autoprefixer": "^10.4.19",
-    "@blocknote/react": "0.46.1",
     "@blocknote/mantine": "0.46.1",
+    "@blocknote/react": "0.46.1",
     "@mantine/core": "^8.3.12",
-    "@mantine/hooks": "^8.3.12"
+    "@mantine/hooks": "^8.3.12",
+    "@supabase/supabase-js": "^2.39.0",
+    "astro": "latest",
+    "autoprefixer": "^10.4.19",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwindcss": "^3.4.1"
   },
   "overrides": {
     "@blocknote/core": "0.46.1",
     "prosemirror-state": "1.4.4",
     "prosemirror-model": "1.25.4",
     "prosemirror-view": "1.41.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3"
   }
 }
