@@ -199,6 +199,7 @@ export type Database = {
           created_at: string | null
           current_step: string | null
           custom_prompt: string | null
+          draft_categories: Json | null
           error_message: string | null
           id: string
           key_points: Json | null
@@ -224,6 +225,7 @@ export type Database = {
           created_at?: string | null
           current_step?: string | null
           custom_prompt?: string | null
+          draft_categories?: Json | null
           error_message?: string | null
           id?: string
           key_points?: Json | null
@@ -249,6 +251,7 @@ export type Database = {
           created_at?: string | null
           current_step?: string | null
           custom_prompt?: string | null
+          draft_categories?: Json | null
           error_message?: string | null
           id?: string
           key_points?: Json | null

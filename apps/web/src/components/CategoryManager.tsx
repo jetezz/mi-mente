@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase, getUserCategories, createCategory, deleteCategory, getCategoryTree } from '../lib/supabase';
+import { supabase, getUserCategories, createCategory, deleteCategory, updateCategory, getCategoryTree } from '../lib/supabase';
+import { CategoryTree } from './CategoryTree';
 import type { User } from '@supabase/supabase-js';
 
 interface Category {
@@ -17,11 +18,21 @@ export function CategoryManager() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [selectedParent, setSelectedParent] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuthAndLoad();
   }, []);
+
+  // Limpiar mensaje de éxito después de 3 segundos
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   const checkAuthAndLoad = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -56,11 +67,37 @@ export function CategoryManager() {
       await createCategory(newCategoryName.trim(), selectedParent || undefined);
       setNewCategoryName('');
       setSelectedParent(null);
+      setSuccessMessage('Categoría creada correctamente');
       await loadCategories();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear categoría');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleUpdateParent = async (categoryId: string, newParentId: string | null) => {
+    setUpdating(true);
+    setError(null);
+
+    try {
+      await updateCategory(categoryId, { parent_id: newParentId });
+
+      // Encontrar el nombre de la categoría movida
+      const movedCategory = categories.find(c => c.id === categoryId);
+      const parentCategory = newParentId ? categories.find(c => c.id === newParentId) : null;
+
+      if (newParentId && parentCategory) {
+        setSuccessMessage(`"${movedCategory?.name}" ahora es hijo de "${parentCategory.name}"`);
+      } else {
+        setSuccessMessage(`"${movedCategory?.name}" ahora es categoría raíz`);
+      }
+
+      await loadCategories();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al mover categoría');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -71,9 +108,22 @@ export function CategoryManager() {
 
     try {
       await deleteCategory(id);
+      setSuccessMessage('Categoría eliminada correctamente');
       await loadCategories();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar categoría');
+    }
+  };
+
+  const handleRename = async (id: string, newName: string) => {
+    if (!newName.trim()) return;
+
+    try {
+      await updateCategory(id, { name: newName.trim() });
+      setSuccessMessage('Categoría renombrada correctamente');
+      await loadCategories();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al renombrar categoría');
     }
   };
 
@@ -98,17 +148,30 @@ export function CategoryManager() {
 
   return (
     <div className="space-y-8">
+      {/* Mensajes de feedback */}
+      {error && (
+        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm flex items-center gap-2 animate-pulse">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {successMessage}
+        </div>
+      )}
+
       {/* Crear nueva categoría */}
       <div className="card p-6">
         <h2 className="text-lg font-semibold text-dark-100 mb-4 flex items-center gap-2">
           <span>➕</span> Crear Nueva Categoría
         </h2>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-            {error}
-          </div>
-        )}
 
         <form onSubmit={handleCreate} className="flex flex-col sm:flex-row gap-3">
           <input
@@ -143,32 +206,40 @@ export function CategoryManager() {
         </form>
       </div>
 
-      {/* Lista de categorías */}
+      {/* Lista de categorías con Drag and Drop */}
       <div className="card p-6">
-        <h2 className="text-lg font-semibold text-dark-100 mb-4 flex items-center gap-2">
-          <span>📂</span> Tus Categorías ({categories.length})
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-dark-100 flex items-center gap-2">
+            <span>📂</span> Tus Categorías ({categories.length})
+          </h2>
+          {updating && (
+            <div className="flex items-center gap-2 text-primary-400 text-sm">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
+              Actualizando...
+            </div>
+          )}
+        </div>
 
-        {categoryTree.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-5xl mb-4">📭</div>
-            <p className="text-dark-400">No tienes categorías aún</p>
-            <p className="text-dark-500 text-sm mt-1">
-              Crea tu primera categoría para organizar tu conocimiento
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {categoryTree.map((category) => (
-              <CategoryItem
-                key={category.id}
-                category={category}
-                onDelete={handleDelete}
-                level={0}
-              />
-            ))}
+        {/* Instrucciones de drag and drop */}
+        {categoryTree.length > 0 && (
+          <div className="mb-4 p-3 rounded-lg bg-dark-800/50 border border-dark-700 text-dark-400 text-sm flex items-center gap-2">
+            <svg className="w-5 h-5 text-primary-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              <strong className="text-dark-300">Arrastra</strong> una categoría sobre otra para convertirla en subcategoría,
+              o <strong className="text-dark-300">suéltala en la zona superior</strong> para convertirla en categoría raíz.
+            </span>
           </div>
         )}
+
+        <CategoryTree
+          categories={categoryTree}
+          onUpdateParent={handleUpdateParent}
+          onDelete={handleDelete}
+          onRename={handleRename}
+          loading={updating}
+        />
       </div>
 
       {/* Info */}
@@ -177,63 +248,28 @@ export function CategoryManager() {
           💡 Cómo funcionan las categorías
         </h3>
         <ul className="space-y-2 text-sm text-dark-400">
-          <li>• Las categorías te ayudan a organizar tus notas en Notion</li>
-          <li>• Puedes crear jerarquías (ej: Tecnología → Programación → React)</li>
-          <li>• Al usar el Chat, puedes filtrar por categoría para respuestas más relevantes</li>
-          <li>• Las subcategorías se incluyen automáticamente en las búsquedas</li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-400">•</span>
+            <span>Las categorías te ayudan a organizar tus notas en Notion</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-400">•</span>
+            <span>Puedes crear jerarquías (ej: Tecnología → Programación → React)</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-400">•</span>
+            <span><strong className="text-dark-300">Arrastra y suelta</strong> para reorganizar la jerarquía fácilmente</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-400">•</span>
+            <span>Al usar el Chat, puedes filtrar por categoría para respuestas más relevantes</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-primary-400">•</span>
+            <span>Las subcategorías se incluyen automáticamente en las búsquedas</span>
+          </li>
         </ul>
       </div>
-    </div>
-  );
-}
-
-// Componente recursivo para mostrar el árbol
-function CategoryItem({
-  category,
-  onDelete,
-  level
-}: {
-  category: Category;
-  onDelete: (id: string) => void;
-  level: number;
-}) {
-  const hasChildren = category.children && category.children.length > 0;
-
-  return (
-    <div>
-      <div
-        className="flex items-center justify-between p-3 rounded-xl bg-dark-700/50 hover:bg-dark-700 transition-colors"
-        style={{ marginLeft: `${level * 24}px` }}
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-lg">{hasChildren ? '📂' : '📄'}</span>
-          <span className="text-dark-100 font-medium">{category.name}</span>
-          {hasChildren && (
-            <span className="text-xs text-dark-500 bg-dark-600 px-2 py-0.5 rounded-full">
-              {category.children?.length} sub
-            </span>
-          )}
-        </div>
-        <button
-          onClick={() => onDelete(category.id)}
-          className="p-2 rounded-lg text-dark-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          title="Eliminar categoría"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
-      </div>
-
-      {/* Hijos recursivos */}
-      {hasChildren && category.children?.map((child) => (
-        <CategoryItem
-          key={child.id}
-          category={child}
-          onDelete={onDelete}
-          level={level + 1}
-        />
-      ))}
     </div>
   );
 }
