@@ -8,11 +8,12 @@ interface Category {
 
 interface CategorySelectorProps {
   categories: Category[];
-  selected: Category | null;
-  onSelect: (category: Category | null) => void;
+  selected: Category[]; // Cambio a array
+  onSelect: (categories: Category[]) => void; // Cambio a array
+  multiple?: boolean;
 }
 
-export function CategorySelector({ categories, selected, onSelect }: CategorySelectorProps) {
+export function CategorySelector({ categories, selected, onSelect, multiple = false }: CategorySelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -31,20 +32,36 @@ export function CategorySelector({ categories, selected, onSelect }: CategorySel
   const rootCategories = categories.filter(c => !c.parent_id);
   const getChildren = (parentId: string) => categories.filter(c => c.parent_id === parentId);
 
+  const toggleCategory = (category: Category) => {
+    if (multiple) {
+      const isSelected = selected.some(s => s.id === category.id);
+      if (isSelected) {
+        onSelect(selected.filter(s => s.id !== category.id));
+      } else {
+        onSelect([...selected, category]);
+      }
+    } else {
+      onSelect([category]);
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-700 border border-dark-600 hover:border-dark-500 transition-colors"
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-dark-700 border border-dark-600 hover:border-dark-500 transition-colors w-full"
       >
         <svg className="w-4 h-4 text-dark-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
-        <span className={selected ? 'text-dark-100' : 'text-dark-400'}>
-          {selected ? selected.name : 'Todas las categorías'}
+        <span className={selected.length > 0 ? 'text-dark-100' : 'text-dark-400'}>
+          {selected.length > 0
+            ? selected.map(s => s.name).join(', ')
+            : 'Seleccionar categorías'}
         </span>
         <svg
-          className={`w-4 h-4 text-dark-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-dark-400 transition-transform ml-auto ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -55,18 +72,18 @@ export function CategorySelector({ categories, selected, onSelect }: CategorySel
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 py-2 rounded-xl bg-dark-700 border border-dark-600 shadow-xl z-50 max-h-80 overflow-y-auto">
-          {/* Opción "Todas" */}
+        <div className="absolute left-0 mt-2 w-full py-2 rounded-xl bg-dark-700 border border-dark-600 shadow-xl z-50 max-h-80 overflow-y-auto">
+          {/* Opción "Ninguna" */}
           <button
             onClick={() => {
-              onSelect(null);
-              setIsOpen(false);
+              onSelect([]);
+              if (!multiple) setIsOpen(false);
             }}
-            className={`w-full px-4 py-2 text-left hover:bg-dark-600 transition-colors flex items-center gap-2 ${!selected ? 'bg-primary-500/20 text-primary-400' : 'text-dark-200'
+            className={`w-full px-4 py-2 text-left hover:bg-dark-600 transition-colors flex items-center gap-2 ${selected.length === 0 ? 'bg-primary-500/20 text-primary-400' : 'text-dark-200'
               }`}
           >
             <span className="text-lg">🌐</span>
-            Todas las categorías
+            Ninguna
           </button>
 
           <div className="border-t border-dark-600 my-2" />
@@ -84,10 +101,7 @@ export function CategorySelector({ categories, selected, onSelect }: CategorySel
                 children={getChildren(category.id)}
                 getChildren={getChildren}
                 selected={selected}
-                onSelect={(cat) => {
-                  onSelect(cat);
-                  setIsOpen(false);
-                }}
+                onSelect={toggleCategory}
                 level={0}
               />
             ))
@@ -103,13 +117,13 @@ interface CategoryItemProps {
   category: Category;
   children: Category[];
   getChildren: (parentId: string) => Category[];
-  selected: Category | null;
+  selected: Category[];
   onSelect: (category: Category) => void;
   level: number;
 }
 
 function CategoryItem({ category, children, getChildren, selected, onSelect, level }: CategoryItemProps) {
-  const isSelected = selected?.id === category.id;
+  const isSelected = selected.some(s => s.id === category.id);
   const hasChildren = children.length > 0;
 
   return (
@@ -123,9 +137,10 @@ function CategoryItem({ category, children, getChildren, selected, onSelect, lev
         <span className="text-lg">
           {hasChildren ? '📂' : '📄'}
         </span>
-        <span className="truncate">{category.name}</span>
+        <span className="truncate flex-1">{category.name}</span>
+        {isSelected && <span className="text-primary-400">✓</span>}
         {hasChildren && (
-          <span className="ml-auto text-xs text-dark-500">
+          <span className="text-xs text-dark-500">
             +{children.length}
           </span>
         )}

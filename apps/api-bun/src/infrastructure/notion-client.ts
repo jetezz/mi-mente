@@ -274,7 +274,7 @@ export class NotionClient {
   async createPageFromMarkdown(options: {
     title: string;
     markdown: string;
-    categoryName?: string;
+    categoryNames?: string[];
     tags?: string[];
     sourceUrl?: string;
   }): Promise<string | null> {
@@ -319,9 +319,9 @@ export class NotionClient {
           Name: {
             title: [{ text: { content: options.title } }],
           },
-          ...(options.categoryName ? {
+          ...(options.categoryNames && options.categoryNames.length > 0 ? {
             categoria: {
-              multi_select: [{ name: options.categoryName }],
+              multi_select: options.categoryNames.map(name => ({ name })),
             },
           } : {}),
           ...(options.tags && options.tags.length > 0 ? {

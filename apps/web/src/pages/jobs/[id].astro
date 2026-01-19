@@ -1,0 +1,55 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import JobEditor from '../../components/jobs/JobEditor.tsx';
+import { SidebarCard, QuickActions } from '../../components/ui';
+
+// Obtener el ID del job desde la URL
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/jobs');
+}
+
+const actions = [
+  { icon: '📋', label: 'Ver cola', href: '/jobs' },
+  { icon: '➕', label: 'Añadir video', href: '/dashboard' },
+  { icon: '💬', label: 'Chat', href: '/chat' }
+];
+---
+
+<AppLayout title="Editar Resumen" maxWidth="4xl">
+  <!-- Main Content -->
+  <div slot="main" class="lg:col-span-3 space-y-6">
+    <JobEditor jobId={id} client:only="react" />
+  </div>
+
+  <!-- Sidebar -->
+  <aside slot="sidebar" class="space-y-6">
+    <!-- Quick Actions -->
+    <SidebarCard title="Acciones" icon="⚡" client:load>
+      <QuickActions actions={actions} client:load />
+    </SidebarCard>
+
+    <!-- Tips de edición -->
+    <SidebarCard title="Consejos" icon="💡" client:load>
+      <ul class="space-y-2 text-sm text-gray-400">
+        <li class="flex items-start gap-2">
+          <span class="text-purple-400">•</span>
+          Puedes editar el título y contenido antes de guardar
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-purple-400">•</span>
+          El contenido usa formato Markdown
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-purple-400">•</span>
+          Selecciona una categoría para organizar mejor
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-purple-400">•</span>
+          Las etiquetas ayudan a encontrar el contenido
+        </li>
+      </ul>
+    </SidebarCard>   
+  </aside>
+</AppLayout>

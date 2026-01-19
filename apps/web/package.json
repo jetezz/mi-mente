@@ -7,7 +7,8 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "types": "mkdir -p src/types && supabase gen types typescript --project-id ijtsvqkbmjgrtdpbdqkg > src/types/database.ts"
   },
   "dependencies": {
     "@astrojs/node": "latest",

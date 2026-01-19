@@ -14,6 +14,7 @@ import { processUrlUseCase } from './application/process-url';
 import { askBrainUseCase } from './application/ask-brain';
 import { notionIndexer } from './application/notion-indexer';
 import { semanticSearch } from './application/semantic-search';
+import { jobProcessor } from './application/job-processor';
 
 const WORKER_URL = process.env.WORKER_URL || 'http://localhost:8000';
 
@@ -428,7 +429,7 @@ const app = new Elysia()
         title,
         markdown,
         tags: tags || [],
-        categoryName,
+        categoryNames: categoryName ? [categoryName] : [],
         sourceUrl: url,
       });
     } else {
@@ -447,7 +448,7 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
         title,
         markdown: legacyMarkdown,
         tags: tags || [],
-        categoryName,
+        categoryNames: categoryName ? [categoryName] : [],
         sourceUrl: url,
       });
     }
@@ -1220,6 +1221,227 @@ Instrucciones:
     }
   })
 
+  // ============ 🔄 Fase 11: Jobs Queue (Cola de Procesamiento) ============
+
+  // Crear nuevo job (encolar video para procesamiento)
+  .post('/jobs', async ({ body }) => {
+    const { url, customPrompt, userId } = body as {
+      url: string;
+      customPrompt?: string;
+      userId: string;
+    };
+
+    if (!url) {
+      throw new Error('URL es requerida');
+    }
+    if (!userId) {
+      throw new Error('userId es requerido');
+    }
+
+    // Validar que sea una URL de YouTube
+    const platform = workerClient.detectPlatform(url);
+    if (!platform) {
+      throw new Error('URL no soportada. Solo YouTube e Instagram.');
+    }
+
+    const job = await jobProcessor.createJob({
+      url,
+      custom_prompt: customPrompt,
+      user_id: userId
+    });
+
+    return {
+      success: true,
+      job,
+      message: 'Video encolado para procesamiento'
+    };
+  })
+
+  // Listar jobs del usuario
+  .get('/jobs', async ({ query }) => {
+    const userId = query.userId as string;
+    const limit = parseInt(query.limit as string) || 50;
+
+    if (!userId) {
+      throw new Error('userId es requerido');
+    }
+
+    const jobs = await jobProcessor.getJobsByUser(userId, limit);
+    const stats = await jobProcessor.getJobStats(userId);
+
+    return {
+      success: true,
+      jobs,
+      stats,
+      count: jobs.length
+    };
+  })
+
+  // Obtener estadísticas de jobs
+  .get('/jobs/stats', async ({ query }) => {
+    const userId = query.userId as string;
+
+    if (!userId) {
+      throw new Error('userId es requerido');
+    }
+
+    const stats = await jobProcessor.getJobStats(userId);
+
+    return {
+      success: true,
+      stats,
+      processorRunning: jobProcessor.isProcessorRunning()
+    };
+  })
+
+  // Obtener job específico
+  .get('/jobs/:id', async ({ params, query }) => {
+    const { id } = params;
+    const userId = query.userId as string;
+
+    const job = await jobProcessor.getJobById(id);
+
+    if (!job) {
+      throw new Error('Job no encontrado');
+    }
+
+    // Verificar que el job pertenece al usuario
+    if (userId && job.user_id !== userId) {
+      throw new Error('No tienes acceso a este job');
+    }
+
+    return {
+      success: true,
+      job
+    };
+  })
+
+  // Eliminar job
+  .delete('/jobs/:id', async ({ params, query }) => {
+    const { id } = params;
+    const userId = query.userId as string;
+
+    // Verificar propiedad antes de eliminar
+    const job = await jobProcessor.getJobById(id);
+    if (!job) {
+      throw new Error('Job no encontrado');
+    }
+    if (userId && job.user_id !== userId) {
+      throw new Error('No tienes acceso a este job');
+    }
+
+    await jobProcessor.deleteJob(id);
+
+    return {
+      success: true,
+      message: 'Job eliminado'
+    };
+  })
+
+  // Reintentar job fallido
+  .post('/jobs/:id/retry', async ({ params, query }) => {
+    const { id } = params;
+    const userId = query.userId as string;
+
+    const job = await jobProcessor.getJobById(id);
+    if (!job) {
+      throw new Error('Job no encontrado');
+    }
+    if (userId && job.user_id !== userId) {
+      throw new Error('No tienes acceso a este job');
+    }
+    if (job.status !== 'failed') {
+      throw new Error('Solo se pueden reintentar jobs fallidos');
+    }
+
+    const updatedJob = await jobProcessor.retryJob(id);
+
+    return {
+      success: true,
+      job: updatedJob,
+      message: 'Job reencolado para procesamiento'
+    };
+  })
+
+  // Guardar borrador del job (sin enviar a Notion)
+  .patch('/jobs/:id/draft', async ({ params, body }) => {
+    const { id } = params;
+    const { title, markdown, categoryNames, userId } = body as {
+      title?: string;
+      markdown?: string;
+      categoryNames?: string[];
+      userId?: string;
+    };
+
+    const job = await jobProcessor.getJobById(id);
+    if (!job) {
+      throw new Error('Job no encontrado');
+    }
+    if (userId && job.user_id !== userId) {
+      throw new Error('No tienes acceso a este job');
+    }
+    if (job.status !== 'ready') {
+      throw new Error('Solo se pueden editar jobs listos');
+    }
+
+    // Actualizar el borrador
+    const updatedJob = await jobProcessor.updateJobDraft(id, {
+      video_title: title,
+      summary_markdown: markdown,
+      draft_categories: categoryNames
+    });
+
+    return {
+      success: true,
+      job: updatedJob,
+      message: 'Borrador guardado correctamente'
+    };
+  })
+
+  // Guardar job en Notion
+  .post('/jobs/:id/save', async ({ params, body }) => {
+    const { id } = params;
+    const { title, markdown, tags, categoryNames, userId } = body as {
+      title: string;
+      markdown: string;
+      tags: string[];
+      categoryNames?: string[];
+      userId?: string;
+    };
+
+    if (!title || !markdown) {
+      throw new Error('title y markdown son requeridos');
+    }
+
+    const job = await jobProcessor.getJobById(id);
+    if (!job) {
+      throw new Error('Job no encontrado');
+    }
+    if (userId && job.user_id !== userId) {
+      throw new Error('No tienes acceso a este job');
+    }
+    if (job.status !== 'ready') {
+      throw new Error('El job no está listo para guardar');
+    }
+
+    if (!notionClient.isReady()) {
+      throw new Error('Notion no está configurado');
+    }
+
+    const result = await jobProcessor.saveJobToNotion(id, {
+      title,
+      markdown,
+      tags: tags || [],
+      categoryNames
+    }, notionClient);
+
+    return {
+      success: true,
+      notionPageId: result.notionPageId,
+      message: 'Contenido guardado en Notion'
+    };
+  })
+
   // ============ Error Handler ============
 
   .onError(({ code, error }) => {
@@ -1235,12 +1457,17 @@ Instrucciones:
 
   .listen(3000);
 
+// Iniciar el procesador de jobs en segundo plano
+jobProcessor.start();
+
 console.log(`
 🧠 ═══════════════════════════════════════════════════
    Hybrid Brain API
    Running at: http://${app.server?.hostname}:${app.server?.port}
    Worker URL: ${WORKER_URL}
+   Job Processor: ${jobProcessor.isProcessorRunning() ? '✅ Running' : '⚠️ Not Started'}
 ═══════════════════════════════════════════════════ 🧠
 `);
 
 export type App = typeof app;
+

@@ -252,3 +252,38 @@
     overflow: hidden;
   }
 }
+
+/* BlockNote Editor - Tema oscuro con fondo transparente */
+.bn-container[data-color-scheme="dark"] {
+  --bn-colors-editor-text: #e5e5e5;
+  --bn-colors-editor-background: transparent;
+  --bn-colors-menu-text: #ffffff;
+  --bn-colors-menu-background: rgba(23, 23, 33, 0.95);
+  --bn-colors-tooltip-text: #ffffff;
+  --bn-colors-tooltip-background: rgba(30, 30, 40, 0.98);
+  --bn-colors-hovered-text: #ffffff;
+  --bn-colors-hovered-background: rgba(139, 92, 246, 0.2);
+  --bn-colors-selected-text: #ffffff;
+  --bn-colors-selected-background: rgba(139, 92, 246, 0.3);
+  --bn-colors-disabled-text: #666666;
+  --bn-colors-disabled-background: rgba(40, 40, 50, 0.5);
+  --bn-colors-shadow: rgba(0, 0, 0, 0.3);
+  --bn-colors-border: rgba(75, 75, 90, 0.5);
+  --bn-colors-side-menu: #a0a0a0;
+  --bn-font-family: 'Inter', sans-serif;
+}
+
+/* Asegurar que el editor tenga fondo transparente */
+.bn-editor {
+  background: transparent !important;
+}
+
+/* Bloques del editor */
+.bn-block-group {
+  background: transparent !important;
+}
+
+/* Contenedor principal */
+.bn-container {
+  background: transparent !important;
+}

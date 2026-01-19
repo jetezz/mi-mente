@@ -20,6 +20,7 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
 | **Fase 8** | Nuevo Flujo de Subida a Notion | ✅ 100% |
 | **Fase 9** | Unificación de Estilos UI | ✅ 100% |
 | **Fase 10** | Ajustes de Búsqueda Semántica | ✅ 100% |
+| **Fase 11** | Cola de Procesamiento en Segundo Plano | 🟡 95% |
 
 ---
 
@@ -439,6 +440,53 @@ Este proyecto integra **Astro (Frontend)**, **Bun (Orquestador)** y **Python (Pr
   - [x] 10.4.1 Arreglar scroll de `/chat` que inicia a mitad de página
   - [x] 10.4.2 Limpiar console.logs de debug del backend
   - [x] 10.4.3 Mejorar mensaje cuando no hay contenido indexado
+
+---
+
+### 🔄 Fase 11: Cola de Procesamiento en Segundo Plano ⬅️ EN PROGRESO
+> **Objetivo:** Permitir procesar múltiples videos sin esperar a que termine cada uno, separando el procesamiento de la edición y guardado en Notion.
+
+- [x] **11.1 Base de Datos**
+  - [x] 11.1.1 Crear tabla `processing_jobs` con estados y timestamps
+  - [x] 11.1.2 Añadir políticas RLS para `processing_jobs`
+  - [x] 11.1.3 Función SQL `get_next_pending_job()` (atómica)
+  - [x] 11.1.4 Función SQL `get_job_stats()` para estadísticas
+
+- [x] **11.2 Backend - Job Processor**
+  - [x] 11.2.1 Crear servicio `JobProcessor` en `src/application/job-processor.ts`
+  - [x] 11.2.2 Implementar polling de jobs pendientes cada 5s
+  - [x] 11.2.3 Procesamiento: descarga → transcripción → resumen → tags
+  - [x] 11.2.4 Actualización de estado en tiempo real
+  - [x] 11.2.5 Manejo de errores con reintentos automáticos (max 3)
+  - [x] 11.2.6 Integración con worker-py existente
+
+- [x] **11.3 Backend - Endpoints API**
+  - [x] 11.3.1 `POST /jobs` — Encolar nuevo video
+  - [x] 11.3.2 `GET /jobs` — Listar jobs del usuario
+  - [x] 11.3.3 `GET /jobs/:id` — Detalle de job
+  - [x] 11.3.4 `DELETE /jobs/:id` — Eliminar job
+  - [x] 11.3.5 `POST /jobs/:id/retry` — Reintentar fallido
+  - [x] 11.3.6 `POST /jobs/:id/save` — Guardar en Notion
+
+- [x] **11.4 Frontend - Vista de Cola**
+  - [x] 11.4.1 Crear página `/jobs` con `JobsList.tsx`
+  - [x] 11.4.2 Crear `JobCard.tsx` con thumbnail, progreso y acciones
+  - [x] 11.4.3 Hook `useJobs.ts` con polling inteligente
+  - [x] 11.4.4 Filtros por estado (pending, ready, saved, failed)
+  - [x] 11.4.5 Estadísticas de jobs por estado
+
+- [x] **11.5 Frontend - Editor de Resumen**
+  - [x] 11.5.1 Página dinámica `/jobs/[id].astro`
+  - [x] 11.5.2 Componente `JobEditor.tsx` con edición completa
+  - [x] 11.5.3 Selección de categoría y tags
+  - [x] 11.5.4 Modal de indexación post-guardado
+
+- [x] **11.6 Navegación**
+  - [x] 11.6.1 Añadir enlace "🔄 Cola" en Header
+
+- [ ] **11.7 Testing**
+  - [ ] 11.7.1 Probar flujo completo end-to-end
+  - [ ] 11.7.2 Verificar procesamiento de múltiples videos simultáneos
 
 ---
 

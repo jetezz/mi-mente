@@ -944,3 +944,242 @@ function getSimilarityColor(similarity: number): string {
 ### 10.4 Persistencia
 
 El valor del threshold se guarda en `localStorage` para mantener preferencias del usuario entre sesiones.
+
+---
+
+## 🔄 Fase 11: Sistema de Cola de Procesamiento en Segundo Plano
+
+> **Objetivo:** Permitir procesar múltiples videos de YouTube sin esperar a que termine cada uno, separando el procesamiento de la edición y guardado en Notion.
+
+### 11.1 Problema y Solución
+
+**Problema Actual:**
+El Dashboard actual procesa videos de forma síncrona: hay que esperar a que termine todo (descarga → transcripción → resumen → guardado) antes de poder procesar el siguiente.
+
+**Solución:**
+Implementar un sistema de cola que:
+1. Encole videos para procesamiento en segundo plano
+2. Permita agregar múltiples videos sin esperar
+3. Muestre estado de todos los jobs en una nueva vista
+4. Separe la edición/guardado del procesamiento
+
+### 11.2 Nuevo Flujo de Usuario
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     FLUJO CON COLA DE PROCESAMIENTO                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. INPUT (Dashboard)                                                    │
+│     ├─► Usuario pega URL + prompt opcional                               │
+│     └─► Click "Procesar" → Job encolado (inmediato)                     │
+│                                                                          │
+│  2. PROCESAMIENTO EN SEGUNDO PLANO                                       │
+│     ├─► Job se ejecuta en background                                     │
+│     ├─► Usuario puede agregar más videos                                 │
+│     └─► Estado guardado en Supabase (processing_jobs)                   │
+│                                                                          │
+│  3. VISTA DE COLA (/jobs)                                               │
+│     ├─► Lista de jobs con estados:                                       │
+│     │   • ⏳ pending      • 🔄 processing                                │
+│     │   • ✅ ready        • 💾 saved      • ❌ failed                    │
+│     └─► Click en job "ready" → Abre editor                              │
+│                                                                          │
+│  4. EDITOR DE RESUMEN (/jobs/:id)                                       │
+│     ├─► Ver/editar resumen generado                                      │
+│     ├─► Seleccionar categoría                                            │
+│     └─► Guardar → Sube a Notion + Modal de indexación                   │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 11.3 Arquitectura Técnica
+
+**Solución elegida:** Supabase + Background Worker + Polling
+
+| Componente | Tecnología | Rol |
+|------------|------------|-----|
+| Cola | Tabla `processing_jobs` (Supabase) | Persistencia de jobs |
+| API | Endpoints `/jobs/*` (Bun) | CRUD de jobs |
+| Worker | Background process (Bun) | Procesa jobs pendientes |
+| Frontend | Polling cada 5s | Actualiza estado en UI |
+
+**¿Por qué no BullMQ/Inngest?**
+- Requieren infraestructura adicional (Redis/cloud)
+- Nuestra solución usa Supabase existente = zero overhead
+
+### 11.4 Schema de Base de Datos
+
+```sql
+CREATE TABLE processing_jobs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  
+  -- Input
+  url TEXT NOT NULL,
+  custom_prompt TEXT,
+  
+  -- Status
+  status VARCHAR(20) DEFAULT 'pending' CHECK (
+    status IN ('pending', 'downloading', 'transcribing', 'summarizing', 'ready', 'saved', 'failed')
+  ),
+  progress INT DEFAULT 0,
+  current_step TEXT,
+  error_message TEXT,
+  
+  -- Output (cuando status = 'ready')
+  video_title TEXT,
+  video_thumbnail TEXT,
+  video_duration INT,
+  transcription TEXT,
+  summary_markdown TEXT,
+  key_points JSONB,
+  ai_tags JSONB,
+  
+  -- Notion (cuando status = 'saved')
+  notion_page_id TEXT,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  
+  -- Timestamps
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  started_at TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  saved_at TIMESTAMP WITH TIME ZONE,
+  
+  -- Metadata
+  retry_count INT DEFAULT 0
+);
+```
+
+### 11.5 Endpoints API
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/jobs` | POST | Crear nuevo job (encolar) |
+| `/jobs` | GET | Listar jobs del usuario |
+| `/jobs/:id` | GET | Detalle de job específico |
+| `/jobs/:id/save` | POST | Guardar en Notion |
+| `/jobs/:id` | DELETE | Eliminar job |
+| `/jobs/:id/retry` | POST | Reintentar job fallido |
+
+### 11.6 Servicio JobProcessor
+
+```typescript
+// apps/api-bun/src/application/job-processor.ts
+class JobProcessor {
+  private isRunning = false;
+  private pollInterval = 5000; // 5 segundos
+  
+  async start() {
+    this.isRunning = true;
+    while (this.isRunning) {
+      const job = await this.getNextPendingJob();
+      if (job) {
+        await this.processJob(job);
+      }
+      await Bun.sleep(this.pollInterval);
+    }
+  }
+  
+  async processJob(job: ProcessingJob) {
+    // 1. Marcar como 'downloading'
+    await this.updateStatus(job.id, 'downloading', 10);
+    
+    // 2. Descargar video (worker-py)
+    const transcription = await workerClient.transcribe(job.url);
+    await this.updateStatus(job.id, 'transcribing', 40);
+    
+    // 3. Generar resumen (IA)
+    const summary = await aiClient.summarize(transcription);
+    await this.updateStatus(job.id, 'summarizing', 70);
+    
+    // 4. Generar puntos clave y tags
+    const keyPoints = await aiClient.extractKeyPoints(transcription);
+    const tags = await aiClient.generateTags(transcription);
+    
+    // 5. Guardar resultado y marcar como 'ready'
+    await this.saveResult(job.id, { summary, keyPoints, tags });
+    await this.updateStatus(job.id, 'ready', 100);
+  }
+}
+```
+
+### 11.7 Componentes Frontend
+
+#### A. Página `/jobs` (Vista de Cola)
+```astro
+---
+import AppLayout from '../layouts/AppLayout.astro';
+import JobsList from '../components/jobs/JobsList.tsx';
+---
+<AppLayout title="Cola de Procesamiento">
+  <JobsList client:load />
+</AppLayout>
+```
+
+#### B. Componente `JobCard.tsx`
+```typescript
+interface JobCardProps {
+  job: ProcessingJob;
+  onEdit: () => void;
+  onDelete: () => void;
+  onRetry: () => void;
+}
+
+// Muestra: thumbnail, título, estado, progreso, acciones
+```
+
+#### C. Hook `useJobs.ts`
+```typescript
+function useJobs() {
+  const [jobs, setJobs] = useState<ProcessingJob[]>([]);
+  
+  // Polling solo si hay jobs activos
+  useEffect(() => {
+    const hasActiveJobs = jobs.some(j => 
+      ['pending', 'downloading', 'transcribing', 'summarizing'].includes(j.status)
+    );
+    if (hasActiveJobs) {
+      const interval = setInterval(fetchJobs, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [jobs]);
+  
+  return { jobs, createJob, deleteJob, retryJob };
+}
+```
+
+### 11.8 Estados del Job
+
+| Estado | Icono | Progress | Descripción |
+|--------|-------|----------|-------------|
+| `pending` | ⏳ | 0% | En cola, esperando |
+| `downloading` | 📥 | 10-30% | Descargando audio |
+| `transcribing` | 🎧 | 30-60% | Whisper procesando |
+| `summarizing` | 🤖 | 60-90% | IA generando resumen |
+| `ready` | ✅ | 100% | Listo para revisar |
+| `saved` | 💾 | 100% | Guardado en Notion |
+| `failed` | ❌ | Variable | Error (puede reintentar) |
+
+### 11.9 Diagrama de Secuencia
+
+```
+Usuario          Frontend         API-Bun         Supabase        Worker-Py
+   │                │                │                │                │
+   │──POST /jobs───►│───────────────►│───INSERT──────►│                │
+   │                │◄──{id,status}──│◄───────────────│                │
+   │◄──"Encolado"───│                │                │                │
+   │                │                │                │                │
+   │  (puede seguir agregando videos)                 │                │
+   │                │                │                │                │
+   │                │      [Background Processor]     │                │
+   │                │                │───SELECT───────►│                │
+   │                │                │◄──job pending──│                │
+   │                │                │────────────────────────GET ────►│
+   │                │                │◄───────────────────transcription─│
+   │                │                │───UPDATE───────►│                │
+   │                │                │ (status=ready)  │                │
+   │                │                │                │                │
+   │──GET /jobs────►│───────────────►│───SELECT───────►│                │
+   │◄──[jobs list]──│◄───────────────│◄───────────────│                │
+```
