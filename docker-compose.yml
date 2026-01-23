@@ -32,10 +32,11 @@ services:
     # Eliminamos el mapeo manual de puertos (ports:), Coolify lo maneja internamente
     environment:
       - HOST=0.0.0.0
-      - PORT=3000 # Cambiado a 3000 por ser estándar
+      - PORT=3000
+      - NODE_ENV=production
+      - PROTOCOL=http
       - HTTPS=false
-      - PUBLIC_API_URL=${PUBLIC_API_URL}
-    command: bun run ./dist/server/entry.mjs --host 0.0.0.0 --port 3000
+    command: ["bun", "./dist/server/entry.mjs"]
     networks:
       - coolify
 
