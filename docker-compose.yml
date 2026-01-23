@@ -35,6 +35,11 @@ services:
       - PORT=3000
       - NODE_ENV=production
       - HTTPS=
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     command: ["sh", "-c", "unset HTTPS && exec bun ./dist/server/entry.mjs"]
     networks:
       - coolify
