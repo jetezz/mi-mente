@@ -2,7 +2,6 @@ services:
   # 1. WORKER PYTHON (IA & Descargas)
   worker-py:
     build: ./apps/worker-py
-    container_name: brain-worker
     restart: always
     volumes:
       - ./apps/worker-py/models:/root/.cache/huggingface
@@ -14,7 +13,6 @@ services:
   # 2. API ORCHESTRATOR (Bun + Elysia)
   api-bun:
     build: ./apps/api-bun
-    container_name: brain-api
     restart: always
     environment:
       - WORKER_URL=http://worker-py:8000
@@ -27,7 +25,6 @@ services:
   # 3. FRONTEND (Astro)
   web:
     build: ./apps/web
-    container_name: brain-web
     restart: always
     # Eliminamos el mapeo manual de puertos (ports:), Coolify lo maneja internamente
     environment:
