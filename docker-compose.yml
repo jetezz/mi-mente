@@ -48,8 +48,8 @@ services:
     build: ./apps/web
     container_name: brain-web
     restart: always
-    # ports:
-    #   - "4321:4321"
+    ports:
+      - "4321:4321"
     environment:
       - PUBLIC_API_URL=${PUBLIC_API_URL} 
     # volumes:
