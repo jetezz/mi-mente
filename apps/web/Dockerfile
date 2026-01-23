@@ -16,7 +16,6 @@ RUN bun run build
 # 5. Configurar entorno para correr el servidor
 ENV HOST=0.0.0.0
 ENV PORT=3000
-ENV NODE_ENV=production
 
 # 6. Ejecutar el servidor generado (Astro con Node adapter genera un mjs ejecutable)
 CMD ["bun", "run", "./dist/server/entry.mjs"]
