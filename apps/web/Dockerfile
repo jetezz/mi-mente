@@ -18,5 +18,5 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-# 6. Ejecutar el servidor generado (Astro con Node adapter genera un mjs ejecutable)
-CMD ["bun", "run", "./dist/server/entry.mjs"]
+# 6. Ejecutar el servidor custom (Middleware mode)
+CMD ["bun", "server.mjs"]
