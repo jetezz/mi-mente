@@ -34,7 +34,8 @@ services:
       - HOST=0.0.0.0
       - PORT=3000
       - NODE_ENV=production
-    command: ["bun", "./dist/server/entry.mjs"]
+      - HTTPS=
+    command: ["sh", "-c", "unset HTTPS && exec bun ./dist/server/entry.mjs"]
     networks:
       - coolify
 
