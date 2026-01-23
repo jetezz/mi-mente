@@ -51,11 +51,13 @@ services:
     ports:
       - "4321:4321"
     environment:
+      - HOST=0.0.0.0
+      - PORT=4321
       - PUBLIC_API_URL=${PUBLIC_API_URL} 
     # volumes:
     #   - ./apps/web:/app
     #   - /app/node_modules
-    # command: bun run dev --host
+    command: bun run ./dist/server/entry.mjs
     networks:
       - brain-network
 
