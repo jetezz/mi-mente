@@ -31,15 +31,12 @@ services:
       - HOST=0.0.0.0
       - PORT=3000
       - NODE_ENV=production
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     labels:
       - "traefik.enable=true"
-      - "traefik.http.services.web.loadbalancer.server.port=3000"
-      - "traefik.http.routers.web.entryPoints=http"
+      - "traefik.http.routers.mi-cerebro-web.rule=Host(`h8cs80sossog4800oco8ocw8.79.116.135.96.sslip.io`)"
+      - "traefik.http.routers.mi-cerebro-web.service=mi-cerebro-web"
+      - "traefik.http.routers.mi-cerebro-web.entryPoints=http"
+      - "traefik.http.services.mi-cerebro-web.loadbalancer.server.port=3000"
     networks:
       - coolify
 
