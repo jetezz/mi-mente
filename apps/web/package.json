@@ -11,7 +11,7 @@
     "types": "mkdir -p src/types && supabase gen types typescript --project-id ijtsvqkbmjgrtdpbdqkg > src/types/database.ts"
   },
   "dependencies": {
-    "@astrojs/bun": "latest",
+    "@astrojs/bun": "^1.0.4",
     "@astrojs/react": "latest",
     "@astrojs/tailwind": "latest",
     "@blocknote/mantine": "0.46.1",
