@@ -34,8 +34,6 @@ services:
       - HOST=0.0.0.0
       - PORT=3000
       - NODE_ENV=production
-      - PROTOCOL=http
-      - HTTPS=false
     command: ["bun", "./dist/server/entry.mjs"]
     networks:
       - coolify
