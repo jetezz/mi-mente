@@ -32,10 +32,10 @@ services:
       # Aquí definimos la URL interna del worker con el nombre del servicio docker
       - WORKER_URL=http://worker-py:8000
     env_file: .env
-    volumes:
-      - ./apps/api-bun:/app
-      - /app/node_modules
-    command: bun run dev
+    # volumes:
+    #   - ./apps/api-bun:/app
+    #   - /app/node_modules
+    # command: bun run dev
     depends_on:
       - worker-py
     networks:
@@ -51,12 +51,11 @@ services:
     # ports:
     #   - "4321:4321"
     environment:
-      - PUBLIC_API_URL=http://localhost:3000 
-    env_file: .env
-    volumes:
-      - ./apps/web:/app
-      - /app/node_modules
-    command: bun run dev --host
+      - PUBLIC_API_URL=${PUBLIC_API_URL} 
+    # volumes:
+    #   - ./apps/web:/app
+    #   - /app/node_modules
+    # command: bun run dev --host
     networks:
       - brain-network
 
