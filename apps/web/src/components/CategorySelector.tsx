@@ -8,14 +8,17 @@ interface Category {
 
 interface CategorySelectorProps {
   categories: Category[];
-  selected: Category[]; // Cambio a array
-  onSelect: (categories: Category[]) => void; // Cambio a array
+  selected: Category[] | Category | null;
+  onSelect: (categories: Category[]) => void;
   multiple?: boolean;
 }
 
 export function CategorySelector({ categories, selected, onSelect, multiple = false }: CategorySelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Normalizar selected a array siempre
+  const selectedArray = Array.isArray(selected) ? selected : (selected ? [selected] : []);
 
   // Cerrar al hacer click fuera
   useEffect(() => {
@@ -34,11 +37,11 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
 
   const toggleCategory = (category: Category) => {
     if (multiple) {
-      const isSelected = selected.some(s => s.id === category.id);
+      const isSelected = selectedArray.some(s => s.id === category.id);
       if (isSelected) {
-        onSelect(selected.filter(s => s.id !== category.id));
+        onSelect(selectedArray.filter(s => s.id !== category.id));
       } else {
-        onSelect([...selected, category]);
+        onSelect([...selectedArray, category]);
       }
     } else {
       onSelect([category]);
@@ -55,9 +58,9 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
         <svg className="w-4 h-4 text-dark-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
         </svg>
-        <span className={selected.length > 0 ? 'text-dark-100' : 'text-dark-400'}>
-          {selected.length > 0
-            ? selected.map(s => s.name).join(', ')
+        <span className={selectedArray.length > 0 ? 'text-dark-100' : 'text-dark-400'}>
+          {selectedArray.length > 0
+            ? selectedArray.map(s => s.name).join(', ')
             : 'Seleccionar categorías'}
         </span>
         <svg
@@ -79,7 +82,7 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
               onSelect([]);
               if (!multiple) setIsOpen(false);
             }}
-            className={`w-full px-4 py-2 text-left hover:bg-dark-600 transition-colors flex items-center gap-2 ${selected.length === 0 ? 'bg-primary-500/20 text-primary-400' : 'text-dark-200'
+            className={`w-full px-4 py-2 text-left hover:bg-dark-600 transition-colors flex items-center gap-2 ${selectedArray.length === 0 ? 'bg-primary-500/20 text-primary-400' : 'text-dark-200'
               }`}
           >
             <span className="text-lg">🌐</span>
@@ -95,12 +98,12 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
             </div>
           ) : (
             rootCategories.map(category => (
-              <CategoryItem
+              <CategorySelectorItem
                 key={category.id}
                 category={category}
                 children={getChildren(category.id)}
                 getChildren={getChildren}
-                selected={selected}
+                selected={selectedArray}
                 onSelect={toggleCategory}
                 level={0}
               />
@@ -113,7 +116,7 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
 }
 
 // Item recursivo para mostrar jerarquía
-interface CategoryItemProps {
+interface CategorySelectorItemProps {
   category: Category;
   children: Category[];
   getChildren: (parentId: string) => Category[];
@@ -122,7 +125,7 @@ interface CategoryItemProps {
   level: number;
 }
 
-function CategoryItem({ category, children, getChildren, selected, onSelect, level }: CategoryItemProps) {
+function CategorySelectorItem({ category, children, getChildren, selected, onSelect, level }: CategorySelectorItemProps) {
   const isSelected = selected.some(s => s.id === category.id);
   const hasChildren = children.length > 0;
 
@@ -148,7 +151,7 @@ function CategoryItem({ category, children, getChildren, selected, onSelect, lev
 
       {/* Hijos recursivos */}
       {hasChildren && children.map(child => (
-        <CategoryItem
+        <CategorySelectorItem
           key={child.id}
           category={child}
           children={getChildren(child.id)}

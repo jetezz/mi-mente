@@ -8,8 +8,8 @@ services:
     build: ./apps/worker-py
     container_name: brain-worker
     restart: always
-    # ports:
-    #   - "8000:8000" # Acceso externo opcional para pruebas
+    ports:
+      - "8000:8000" # Acceso externo opcional para pruebas
     volumes:
       # Persistencia de modelos Whisper para no descargarlos en cada reinicio
       - ./apps/worker-py/models:/root/.cache/huggingface
@@ -26,8 +26,8 @@ services:
     build: ./apps/api-bun
     container_name: brain-api
     restart: always
-    # ports:
-    #   - "3000:3000"
+    ports:
+      - "3000:3000"
     environment:
       # Aquí definimos la URL interna del worker con el nombre del servicio docker
       - WORKER_URL=http://worker-py:8000

@@ -52,7 +52,7 @@ function getSimilarityBadge(similarity: number): string {
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -193,7 +193,8 @@ export function ChatInterface() {
     setInput('');
 
     // Iniciar streaming con threshold actual
-    startStream(input, selectedCategory?.id, threshold);
+    const categoryId = selectedCategories.length > 0 ? selectedCategories[0].id : undefined;
+    startStream(input, categoryId, threshold);
   };
 
   const clearChat = () => {
@@ -244,8 +245,8 @@ export function ChatInterface() {
 
           <CategorySelector
             categories={categories}
-            selected={selectedCategory}
-            onSelect={setSelectedCategory}
+            selected={selectedCategories}
+            onSelect={setSelectedCategories}
           />
           {messages.length > 0 && (
             <button
