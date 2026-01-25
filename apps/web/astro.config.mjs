@@ -12,6 +12,7 @@ export default defineConfig({
   }),
   vite: {
     server: {
+      allowedHosts: ['mimente.online'],
       watch: {
         usePolling: true,
       }
