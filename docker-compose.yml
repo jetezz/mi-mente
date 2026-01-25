@@ -51,7 +51,8 @@ services:
     ports:
       - "4321:4321"
     environment:
-      - PUBLIC_API_URL=http://localhost:3000 
+      - PUBLIC_API_URL=/api
+      - API_INTERNAL_URL=http://api-bun:3000 
     env_file: .env
     volumes:
       - ./apps/web:/app

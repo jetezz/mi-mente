@@ -13,6 +13,13 @@ export default defineConfig({
   vite: {
     server: {
       allowedHosts: ['mimente.online'],
+      proxy: {
+        '/api': {
+          target: process.env.API_INTERNAL_URL || 'http://localhost:3000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        }
+      },
       watch: {
         usePolling: true,
       }
