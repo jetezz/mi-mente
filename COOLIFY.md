@@ -54,3 +54,6 @@ cloudflared tunnel route dns mi-mente mimente.online
 
 # Ejecutar y Probar
 cloudflared tunnel run mi-mente
+
+# generar token 
+cloudflared tunnel token mi-mente

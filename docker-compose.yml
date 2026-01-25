@@ -61,6 +61,22 @@ services:
     networks:
       - brain-network
 
+  # -------------------------------------------------------
+  # 4. CLOUDFLARE TUNNEL
+  # -------------------------------------------------------
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: brain-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    networks:
+      - brain-network
+    depends_on:
+      - web
+      - api-bun
+
 # Red interna privada
 networks:
   brain-network:
