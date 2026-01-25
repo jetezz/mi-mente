@@ -71,6 +71,8 @@ services:
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    volumes:
+      - ./tunnel/config.yml:/etc/cloudflared/config.yml
     networks:
       - brain-network
     depends_on:

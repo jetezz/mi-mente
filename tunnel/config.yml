@@ -1,0 +1,4 @@
+ingress:
+  - hostname: mimente.online
+    service: http://web:4321
+  - service: http_status:404
