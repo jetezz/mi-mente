@@ -82,6 +82,10 @@ export class WorkerClient {
     console.log(`📥 Iniciando transcripción: ${url}`);
 
     try {
+      // Configurar un timeout largo (1 hora) para videos largos
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3600000); // 1 hora
+
       const response = await fetch(`${this.baseUrl}/transcribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,7 +95,8 @@ export class WorkerClient {
           language: options?.language || null,
           include_timestamps: options?.includeTimestamps ?? true,
         }),
-      });
+        signal: controller.signal, // Añadimos la señal de abortar
+      }).finally(() => clearTimeout(timeoutId)); // Limpiamos el timeout al terminar
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
