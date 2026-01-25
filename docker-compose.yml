@@ -33,12 +33,11 @@ services:
       - NODE_ENV=production
     ports:
       - "3000:3000"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mi-cerebro-web.rule=Host(`h8cs80sossog4800oco8ocw8.79.116.135.96.sslip.io`)"
-      - "traefik.http.routers.mi-cerebro-web.service=mi-cerebro-web"
-      - "traefik.http.routers.mi-cerebro-web.entryPoints=http"
-      - "traefik.http.services.mi-cerebro-web.loadbalancer.server.port=3000"
+    labels:   
+      - traefik.enable=true
+      - traefik.http.routers.mi-cerebro-web.rule=Host(`web.127.0.0.1.sslip.io`) # <--- CAMBIA ESTO
+      - traefik.http.routers.mi-cerebro-web.entryPoints=http
+      - traefik.http.services.mi-cerebro-web.loadbalancer.server.port=3000
     networks:
       - coolify
 
