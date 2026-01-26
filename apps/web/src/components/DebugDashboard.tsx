@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { AppSetting } from '../types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../lib/config';
 
 // Default placeholders that will be overwritten by settings
 const PLACEHOLDER_USER_ID = 'b0808906-883f-40d5-a1e3-d510a1ae82b7';

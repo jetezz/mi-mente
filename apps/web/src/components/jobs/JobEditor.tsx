@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { API_URL } from '../../lib/config';
 import type { ProcessingJob } from '../../hooks/useJobs';
 import { JOB_STATUS_CONFIG } from '../../hooks/useJobs';
 import { supabase, getUserCategories } from '../../lib/supabase';
@@ -12,7 +13,7 @@ import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import "@blocknote/mantine/style.css";
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+
 
 interface JobEditorProps {
   jobId: string;

@@ -4,11 +4,12 @@
  */
 
 import { useState, useEffect } from 'react';
+import { API_URL } from '../lib/config';
 import { supabase } from '../lib/supabase';
 import { UrlInput } from './UrlInput';
 import { PromptInput } from './PromptInput';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+
 
 interface JobStats {
   total: number;

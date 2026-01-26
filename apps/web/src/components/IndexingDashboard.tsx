@@ -5,9 +5,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { API_URL } from '../lib/config';
 import { supabase } from '../lib/supabase';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+
 
 interface IndexingStats {
   totalPages: number;

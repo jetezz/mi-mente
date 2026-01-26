@@ -27,8 +27,10 @@ services:
     build: ./apps/web
     restart: always
     # Eliminamos el mapeo manual de puertos (ports:), Coolify lo maneja internamente
+    ports:
+      - "4321:4321"
     environment:
-      - PUBLIC_API_URL=/api
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-http://localhost:3000}
       - API_INTERNAL_URL=http://api-bun:3000 
     env_file: .env
     volumes:
@@ -48,8 +50,10 @@ services:
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
-    volumes:
-      - brain-network
+    profiles:
+      - tunnel
+    # volumes: 
+    #   - brain-network (Eliminado: Causaba error al no ser path absoluto)
     depends_on:
       - web
       - api-bun

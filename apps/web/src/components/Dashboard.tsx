@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_URL } from '../lib/config';
 import { UrlInput } from './UrlInput';
 import { ProcessingProgress } from './ProcessingProgress';
 import { ResultCard } from './ResultCard';
@@ -30,7 +31,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | undefined>();
   const [result, setResult] = useState<NoteResult | null>(null);
 
-  const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+
 
   const handleSubmit = async (url: string) => {
     setError(undefined);

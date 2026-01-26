@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_URL } from '../lib/config';
 
 interface ServiceStatus {
   name: string;
@@ -22,7 +23,6 @@ export function StatusIndicator() {
 
   async function checkHealth() {
     try {
-      const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
       const response = await fetch(`${API_URL}/health`);
       const data = await response.json();
 

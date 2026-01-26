@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { API_URL } from '../lib/config';
 
 export type JobStatus =
   | 'pending'
@@ -60,7 +61,6 @@ interface UseJobsResult {
   refreshJobs: () => Promise<void>;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 const POLL_INTERVAL = 5000; // 5 segundos
 
 export function useJobs(userId: string | null): UseJobsResult {

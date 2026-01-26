@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { API_URL } from '../lib/config';
 import type { AppSetting } from '../types';
 import { CategorySelector } from './CategorySelector';
 import { supabase, getUserCategories } from '../lib/supabase';
@@ -72,7 +73,7 @@ export function ChatInterface() {
       if (typeof window !== 'undefined' && !localStorage.getItem('semanticThreshold')) {
         try {
           // Use same URL strategy as useStreamingChat
-          const apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+          const apiUrl = API_URL;
           const res = await fetch(`${apiUrl}/settings`);
           const data = await res.json();
           const setting = data.settings?.find((s: AppSetting) => s.key === 'search.default_threshold');

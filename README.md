@@ -50,19 +50,49 @@ El proyecto está diseñado como un sistema distribuido de alto rendimiento:
    docker-compose up -d --build
    ```
    Esto levantará:
-   - Frontend en `http://localhost:4321`
-   - API en `http://localhost:3000`
-   - Worker (interno) en puerto 8000
+   - Frontend en `http://localhost:4321` (API interna disponible en `/api`)
+
+   **Restart services**:
+   ```bash
+   docker-compose restart
+   ```
+
+   **Stop services**:
+   ```bash
+   docker-compose down
+   ```
+
+   **Ver logs**:
+   ```bash
+   docker-compose logs -f
+   ```
 
 ### Integración con Coolify & Cloudflare Tunnel
-Este proyecto está preparado para desplegarse tras un túnel de Cloudflare, ideal para VPS o servidores caseros sin IP pública fija.
 
-**Si usas el servicio de túnel integrado:**
-Asegúrate de tener tu token de túnel en el `.env`:
-```env
-TUNNEL_TOKEN=tu_token_largo_de_cloudflare
-```
-El servicio `tunnel` en `docker-compose.yml` se encargará de exponer tu aplicación en `https://mimente.online` (o tu dominio configurado).
+Este proyecto soporta dos modos de ejecución:
+
+1. **Modo Local (Desarrollo)**:
+   Simplemente ejecuta:
+   ```bash
+   docker-compose up -d --build
+   ```
+   Asegúrate de que en tu `.env` tienes:
+   ```env
+   PUBLIC_API_URL=http://localhost:4321/api
+   ```
+
+2. **Modo Servidor/Producción (Con Túnel SSL)**:
+   Si quieres exponer tu servidor a internet con un dominio seguro (ej: `https://mimente.online`) usando Cloudflare Tunnel:
+   
+   1. Configura tu `TUNNEL_TOKEN` en el `.env`.
+   2. Descomenta/Configura la URL pública en `.env`:
+      ```env
+      PUBLIC_API_URL=/api
+      ```
+   3. Lanza los servicios **incluyendo el perfil del túnel**:
+      ```bash
+      docker-compose --profile tunnel up -d --build
+      ```
 
 ## 📂 Estructura del Proyecto
 

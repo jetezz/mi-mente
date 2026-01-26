@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { API_URL as GLOBAL_API_URL } from '../lib/config';
 
 interface StreamSource {
   id: string;
@@ -30,7 +31,7 @@ interface UseStreamingChatOptions {
 
 export function useStreamingChat(options: UseStreamingChatOptions = {}) {
   const {
-    apiUrl = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000',
+    apiUrl = GLOBAL_API_URL,
     useSemantic = true,
     userId,
     threshold = 0.5

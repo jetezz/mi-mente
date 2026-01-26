@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { AppSetting } from '../types';
 
-const API_URL = 'http://localhost:3000';
+import { API_URL } from '../lib/config';
 
 
 export default function SettingsEditor() {
