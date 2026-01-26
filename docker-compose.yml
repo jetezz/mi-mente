@@ -57,9 +57,11 @@ services:
     depends_on:
       - web
       - api-bun
+    networks:
+      - coolify
 
 # Red interna privada
 networks:
   # Usamos la red predefinida de Coolify para que el proxy (Traefik) llegue a los contenedores
   coolify:
-    external: true
+    driver: bridge # Force local bridge network instead of external for local testing if needed, or remove external: true if not using coolify pre-existing net
