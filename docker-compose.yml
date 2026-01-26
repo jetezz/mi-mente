@@ -52,8 +52,8 @@ services:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
     profiles:
       - tunnel
-    # volumes: 
-    #   - brain-network (Eliminado: Causaba error al no ser path absoluto)
+    volumes: 
+      - ./tunnel/config.yml:/etc/cloudflared/config.yml:ro
     depends_on:
       - web
       - api-bun
