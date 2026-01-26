@@ -84,53 +84,100 @@ export default function SettingsEditor() {
 }
 
 function SettingItem({ setting, onSave, isSaving }: { setting: AppSetting; onSave: (val: any) => void; isSaving: boolean }) {
-  const [localValue, setLocalValue] = useState(JSON.stringify(setting.value, null, 2));
+  const [mode, setMode] = useState<'json' | 'text'>(typeof setting.value === 'string' ? 'text' : 'json');
+  const [localValue, setLocalValue] = useState('');
   const [isDirty, setIsDirty] = useState(false);
 
-  // Actualizar si cambia desde fuera
+  // Initialize from prop
   useEffect(() => {
-    setLocalValue(JSON.stringify(setting.value, null, 2));
+    const initialMode = typeof setting.value === 'string' ? 'text' : 'json';
+    setMode(initialMode);
+    setLocalValue(initialMode === 'json' ? JSON.stringify(setting.value, null, 2) : String(setting.value ?? ''));
     setIsDirty(false);
   }, [setting.value]);
 
   const handleSave = () => {
-    try {
-      const parsed = JSON.parse(localValue);
-      onSave(parsed);
+    if (mode === 'text') {
+      onSave(localValue);
       setIsDirty(false);
-    } catch (e) {
-      alert("Formato JSON inválido. Asegúrate de usar comillas dobles para strings.");
+    } else {
+      try {
+        const parsed = JSON.parse(localValue);
+        onSave(parsed);
+        setIsDirty(false);
+      } catch (e) {
+        alert("Formato JSON inválido. Asegúrate de usar comillas dobles para strings y sintaxis correcta.");
+      }
     }
   };
 
   return (
-    <div className="border-b border-gray-700 pb-4 last:border-0">
-      <div className="flex justify-between items-start mb-2">
+    <div className="border-b border-gray-700 pb-6 last:border-0 last:pb-0">
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <div className="font-mono text-sm text-green-400">{setting.key}</div>
-          <div className="text-xs text-gray-400 mt-1">{setting.description}</div>
+          <div className="font-mono text-base font-medium text-green-400 flex items-center gap-2">
+            {setting.key}
+            <span className={`text-[10px] uppercase px-1.5 py-0.5 rounded border ${mode === 'text'
+              ? 'border-blue-500/50 text-blue-400 bg-blue-500/10'
+              : 'border-amber-500/50 text-amber-400 bg-amber-500/10'
+              }`}>
+              {mode === 'text' ? 'Texto' : 'JSON'}
+            </span>
+          </div>
+          <div className="text-sm text-gray-400 mt-1">{setting.description}</div>
         </div>
-        {isSaving && <span className="text-yellow-400 text-xs animate-pulse">Guardando...</span>}
+
+        <div className="flex items-center gap-4">
+          {isSaving && <span className="text-yellow-400 text-xs animate-pulse">Guardando...</span>}
+          <div className="flex bg-gray-900 rounded-lg p-1 border border-gray-700">
+            <button
+              onClick={() => setMode('text')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${mode === 'text' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
+                }`}
+            >
+              Texto
+            </button>
+            <button
+              onClick={() => setMode('json')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${mode === 'json' ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'
+                }`}
+            >
+              JSON
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="flex gap-2 flex-col sm:flex-row">
-        <textarea
-          className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm font-mono text-gray-200 focus:border-purple-500 outline-none"
-          value={localValue}
-          onChange={e => { setLocalValue(e.target.value); setIsDirty(true); }}
-          rows={Math.min(10, Math.max(1, localValue.split('\n').length))}
-          spellCheck={false}
-        />
-        <button
-          onClick={handleSave}
-          disabled={!isDirty || isSaving}
-          className={`px-4 py-2 rounded text-sm font-medium self-start whitespace-nowrap transition-colors ${isDirty
-            ? 'bg-purple-600 text-white hover:bg-purple-500'
-            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
-        >
-          Guardar
-        </button>
+      <div className="gap-2 flex flex-col">
+        <div className="relative group">
+          <textarea
+            className={`w-full bg-gray-900/50 border rounded-lg p-4 text-sm font-mono text-gray-200 outline-none transition-all duration-200 ${mode === 'json' ? 'border-amber-500/20 focus:border-amber-500/50' : 'border-blue-500/20 focus:border-blue-500/50'
+              }`}
+            value={localValue}
+            onChange={e => { setLocalValue(e.target.value); setIsDirty(true); }}
+            rows={Math.min(20, Math.max(3, localValue.split('\n').length))}
+            spellCheck={false}
+            placeholder={mode === 'json' ? '{\n  "key": "value"\n}' : 'Escribe tu texto aquí...'}
+          />
+          <div className="absolute right-2 bottom-2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-[10px] text-gray-500 bg-gray-900 px-2 py-1 rounded border border-gray-800">
+              {localValue.length} caracteres
+            </span>
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || isSaving}
+            className={`px-6 py-2 rounded-lg text-sm font-semibold shadow-lg transition-all transform active:scale-95 ${isDirty
+              ? 'bg-purple-600 text-white hover:bg-purple-500 hover:shadow-purple-500/25'
+              : 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
+              }`}
+          >
+            {isDirty ? 'Guardar Cambios' : 'Sin cambios'}
+          </button>
+        </div>
       </div>
     </div>
   );
