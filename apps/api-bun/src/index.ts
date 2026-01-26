@@ -629,6 +629,52 @@ ${keyPoints?.map(p => `- ${p}`).join('\n') || ''}
 
   // ============ Worker Control ============
 
+  .get('/worker/health', async () => {
+    try {
+      const status = await workerClient.healthCheck();
+      return {
+        success: true,
+        worker: status,
+        message: 'Worker conectado correctamente'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Worker no disponible',
+        message: 'No se pudo conectar con el worker de Python'
+      };
+    }
+  })
+
+  .post('/worker/transcribe', async ({ body }) => {
+    const { url, language } = body as { url: string; language?: string };
+
+    if (!url) {
+      throw new Error('URL es requerida');
+    }
+
+    console.log(`\n🎯 [Worker Transcribe] Solicitando transcripción: ${url}`);
+
+    const result = await workerClient.transcribe(url, {
+      language: language || undefined,
+      includeTimestamps: true,
+    });
+
+    return {
+      success: result.success,
+      method: result.method,
+      language: result.language,
+      duration: result.duration,
+      wordCount: result.wordCount,
+      processingTime: result.processingTime,
+      videoInfo: result.videoInfo,
+      text: result.text,
+      segmentsCount: result.segments?.length || 0,
+      // Solo incluir primeros 5 segmentos para preview
+      segmentsPreview: result.segments?.slice(0, 5) || [],
+    };
+  })
+
   .post('/worker/preload', async () => {
     const result = await workerClient.preloadModel();
     return result;
@@ -1335,6 +1381,24 @@ Instrucciones:
     return {
       success: true,
       message: 'Job eliminado'
+    };
+  })
+
+  // Detener todos los jobs atascados (Emergency Reset)
+  .post('/jobs/stop-all', async ({ query }) => {
+    const userId = query.userId as string;
+
+    if (!userId) {
+      throw new Error('userId es requerido');
+    }
+
+    // Necesitamos lógica en jobProcessor para esto
+    const count = await jobProcessor.resetStuckJobs(userId);
+
+    return {
+      success: true,
+      count,
+      message: `${count} jobs detenidos y marcados como fallidos.`
     };
   })
 

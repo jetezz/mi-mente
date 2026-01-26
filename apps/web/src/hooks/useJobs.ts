@@ -58,6 +58,7 @@ interface UseJobsResult {
   createJob: (url: string, customPrompt?: string) => Promise<ProcessingJob>;
   deleteJob: (jobId: string) => Promise<void>;
   retryJob: (jobId: string) => Promise<ProcessingJob>;
+  stopAllJobs: () => Promise<void>;
   refreshJobs: () => Promise<void>;
 }
 
@@ -193,6 +194,20 @@ export function useJobs(userId: string | null): UseJobsResult {
     return data.job;
   }, [userId]);
 
+  // Detener todos los jobs (Reset de emergencia)
+  const stopAllJobs = useCallback(async (): Promise<void> => {
+    if (!userId) throw new Error('Usuario no autenticado');
+
+    const response = await fetch(`${API_URL}/jobs/stop-all?userId=${userId}`, {
+      method: 'POST'
+    });
+
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error);
+
+    fetchJobs();
+  }, [userId, fetchJobs]);
+
   return {
     jobs,
     stats,
@@ -201,6 +216,7 @@ export function useJobs(userId: string | null): UseJobsResult {
     createJob,
     deleteJob,
     retryJob,
+    stopAllJobs,
     refreshJobs: fetchJobs
   };
 }

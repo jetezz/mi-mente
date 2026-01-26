@@ -172,6 +172,17 @@ const ENDPOINTS_BY_CATEGORY: Record<DebugCategory, EndpointConfig[]> = {
       params: [{ name: 'url', type: 'text', required: true, default: PLACEHOLDER_YOUTUBE_URL }]
     },
     {
+      id: 'transcribe-native',
+      name: '🎯 Transcripción Nativa',
+      method: 'POST',
+      endpoint: '/worker/transcribe',
+      description: 'Obtener transcripción nativa de YouTube (subtítulos oficiales). Prioriza: API → yt-dlp → Whisper',
+      params: [
+        { name: 'url', type: 'text', required: true, default: PLACEHOLDER_YOUTUBE_URL },
+        { name: 'language', type: 'text', default: '' },
+      ]
+    },
+    {
       id: 'process',
       name: 'Procesar URL',
       method: 'POST',
@@ -195,6 +206,13 @@ const ENDPOINTS_BY_CATEGORY: Record<DebugCategory, EndpointConfig[]> = {
       ]
     },
     {
+      id: 'worker-health',
+      name: 'Worker Health',
+      method: 'GET',
+      endpoint: '/worker/health',
+      description: 'Estado del worker de Python (Whisper, cookies, etc.)'
+    },
+    {
       id: 'worker-preload',
       name: 'Preload Whisper',
       method: 'POST',
@@ -202,6 +220,7 @@ const ENDPOINTS_BY_CATEGORY: Record<DebugCategory, EndpointConfig[]> = {
       description: 'Pre-cargar modelo de whisper'
     },
   ],
+
   categories: [
     { id: 'categories-list', name: 'Listar Categorías', method: 'GET', endpoint: '/categories', description: 'Todas las categorías' },
     { id: 'categories-tree', name: 'Árbol Categorías', method: 'GET', endpoint: '/categories/tree', description: 'Categorías jerárquicas' },

@@ -97,4 +97,5 @@ export interface WorkerTranscribeResponse {
     channel: string;
   };
   processingTime: number;
+  method?: string;
 }

@@ -14,6 +14,8 @@ WORKDIR /app
 COPY requirements.txt .
 # Instalamos las librerías
 RUN pip install --no-cache-dir -r requirements.txt
+# Forzar la última versión de yt-dlp directamente desde GitHub para tener los últimos parches anti-bloqueo
+RUN pip install --no-cache-dir --upgrade --force-reinstall "git+https://github.com/yt-dlp/yt-dlp.git"
 
 # 4. Copiar el código fuente
 COPY . .

@@ -101,3 +101,53 @@ Para más detalles sobre la arquitectura y decisiones de diseño, consulta la ca
 - **`docs/PRD.md`**: Definición detallada del producto y requerimientos.
 - **`apps/`**: Código fuente de los microservicios.
 - **`AGENTS.md`**: Guía técnica para agentes de IA.
+
+## 🔧 Troubleshooting
+
+### Error: "Requested format is not available"
+
+Este error ocurre cuando `yt-dlp` intenta procesar formatos de video que no están disponibles. 
+
+**Causa**: Se da cuando `skip_download: True` se usa pero no se añaden las opciones para ignorar errores de formato.
+
+**Solución**: 
+- Actualizar a la última versión de yt-dlp (`pip install -U yt-dlp`)
+- El código ya incluye las opciones necesarias: `ignore_no_formats_error: True` y `format: None`
+
+### Error: "no element found: line 1, column 0" en youtube_transcript_api
+
+**Causa**: YouTube devuelve respuestas vacías o bloqueadas.
+
+**Solución**:
+- El sistema usa `yt-dlp` como fallback automático
+- Considera usar cookies de una sesión de YouTube autenticada (ver configuración de cookies abajo)
+
+### Configuración de Cookies de YouTube
+
+Para evitar bloqueos de YouTube, puedes exportar tus cookies de navegador:
+
+1. Instala una extensión de exportación de cookies (ej: "Get cookies.txt" para Chrome)
+2. Navega a YouTube y exporta las cookies en formato Netscape
+3. Guarda el archivo en `apps/worker-py/cookies/cookies.txt`
+4. El sistema las detectará automáticamente
+
+### Transcripciones Nativas de YouTube
+
+El sistema prioriza las transcripciones nativas de YouTube (subtítulos) sobre Whisper:
+
+1. **Método 1**: `youtube_transcript_api` - Rápido y limpio
+2. **Método 2**: `yt-dlp` - Fallback robusto que descarga subtítulos VTT
+3. **Método 3**: Whisper - Solo si no hay transcripción nativa disponible
+
+Para más detalles, consulta `YOUTUBE_TRANSCRIPTS_PLAN.md`.
+
+## 📝 Changelog
+
+### 2026-01-26: Refactorización de Transcripciones YouTube
+
+- **Fix**: Solucionado error "Requested format is not available" en yt-dlp
+- **Fix**: Corregido manejo de excepciones de `youtube_transcript_api`
+- **Feature**: Nuevo método `get_video_info_safe()` que no falla si no puede obtener metadatos
+- **Feature**: Mejor logging con emojis para debugging
+- **Docs**: Documentación completa en `YOUTUBE_TRANSCRIPTS_PLAN.md`
+

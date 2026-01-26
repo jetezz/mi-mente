@@ -43,7 +43,7 @@ export function JobsList({ onJobSelect }: JobsListProps) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const { jobs, stats, isLoading, error, deleteJob, retryJob, refreshJobs } = useJobs(userId);
+  const { jobs, stats, isLoading, error, deleteJob, retryJob, stopAllJobs, refreshJobs } = useJobs(userId);
 
   // Filtrar y ordenar jobs
   const filteredAndSortedJobs = useMemo(() => {
@@ -250,6 +250,24 @@ export function JobsList({ onJobSelect }: JobsListProps) {
             >
               <span>❌</span> Fallidos ({stats.failed})
             </button>
+            {jobs.some(j => ['pending', 'downloading', 'transcribing', 'summarizing'].includes(j.status)) && (
+              <button
+                onClick={async () => {
+                  if (confirm('¿Estás seguro de querer cancelar TODOS los procesos en curso y marcarlos como fallidos?')) {
+                    try {
+                      // @ts-ignore
+                      await stopAllJobs();
+                    } catch (e) {
+                      alert('Error deteniendo jobs');
+                    }
+                  }
+                }}
+                className="ml-auto px-4 py-2 rounded-xl text-sm font-bold bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-all flex items-center gap-2"
+                title="Detener todos los procesos atascados"
+              >
+                <span>🛑</span> Stop All
+              </button>
+            )}
           </div>
         </div>
 

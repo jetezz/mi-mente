@@ -99,8 +99,16 @@ export class WorkerClient {
       }).finally(() => clearTimeout(timeoutId)); // Limpiamos el timeout al terminar
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.detail || `Error en transcripción: ${response.status}`);
+        let errorMessage = `Error en transcripción: ${response.status} ${response.statusText}`;
+        try {
+          const error = await response.json();
+          if (error.detail) errorMessage = error.detail;
+        } catch (e) {
+          // Si falla el parseo JSON (ej. HTML 500), usamos el texto del status
+          const text = await response.text();
+          console.error('Raw error response:', text.slice(0, 200));
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -122,6 +130,7 @@ export class WorkerClient {
           channel: data.video_info.channel,
         },
         processingTime: data.processing_time,
+        method: data.method,
       };
 
     } catch (error) {

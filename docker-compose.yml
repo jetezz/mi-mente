@@ -6,7 +6,10 @@ services:
     volumes:
       - ./apps/worker-py/models:/root/.cache/huggingface
       - ./apps/worker-py/cookies:/app/cookies
+      - ./apps/worker-py/app:/app/app # Hot-reload para desarrollo
     env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
     networks:
       - coolify
 

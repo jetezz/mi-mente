@@ -54,9 +54,14 @@ El código sigue `Clean Architecture` y está organizado en un monorepo:
 
 ### 5.1 Ingesta y Procesamiento
 - **Input**: URLs de YouTube o Instagram (Reels).
-- **Descarga**: Extracción de audio optimizada usando `yt-dlp` y gestión de cookies para Instagram.
-- **Transcripción**: Uso de `faster-whisper` (modelo `small`/`medium`) para convertir audio a texto con timestamps.
+- **Descarga**: Extracción de audio optimizada usando `yt-dlp` y gestión de cookies para evitar bloqueos.
+- **Transcripción Nativa (YouTube)**: Sistema de 3 capas para obtener subtítulos:
+  1. **youtube_transcript_api**: API directa para subtítulos oficiales (más rápido).
+  2. **yt-dlp subtitles**: Fallback que descarga archivos VTT sin descargar video.
+  3. **Whisper (faster-whisper)**: Transcripción de audio local (modelo `small`/`medium`) solo si no hay subtítulos.
+- **Idiomas**: Prioridad automática: `es` → `en` → `es-419` → `en-US`.
 - **Generación de Contenido**: La IA genera resúmenes, puntos clave, etiquetas y análisis de sentimiento.
+
 
 ### 5.2 Integración con Notion
 - Crear páginas en bases de datos de Notion con formato rico.

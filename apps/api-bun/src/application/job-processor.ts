@@ -59,16 +59,25 @@ class JobProcessor {
     console.log('🛑 [JobProcessor] Detenido');
   }
 
+  private tickCount = 0;
+
   /**
    * Un ciclo de procesamiento
    */
   private async tick(): Promise<void> {
     if (!this.isRunning) return;
 
+    this.tickCount++;
+
+    // Debug: Log heartbeat every 12 ticks (~1 minute)
+    if (this.tickCount % 12 === 0) {
+      console.log(`[JobProcessor] Polling... (Worker: ${WORKER_ID})`);
+    }
+
     try {
       const job = await this.getNextPendingJob();
       if (job) {
-        console.log(`📋 [JobProcessor] Procesando job: ${job.id}`);
+        console.log(`📋 [JobProcessor] JOB ENCONTRADO: ${job.id} (Status: ${job.status}). Procesando...`);
         await this.processJob(job);
       }
     } catch (error) {
@@ -77,37 +86,51 @@ class JobProcessor {
   }
 
   /**
-   * Obtiene el siguiente job pendiente (usa función SQL atómica)
+   * Obtiene el siguiente job pendiente (Lógica manual sin RPC para mayor fiabilidad)
    */
   private async getNextPendingJob(): Promise<ProcessingJob | null> {
     try {
       const supabase = getSupabase();
 
-      const { data, error } = await supabase
-        .rpc('get_next_pending_job', { p_worker_id: WORKER_ID });
-
-      if (error) {
-        console.error('❌ [JobProcessor] Error obteniendo job:', error);
-        return null;
-      }
-
-      if (!data || data.length === 0) {
-        return null;
-      }
-
-      // Obtener el job completo
-      const { data: fullJob, error: fetchError } = await supabase
+      // 1. Buscar el job pendiente más antiguo
+      const { data: candidates, error: findError } = await supabase
         .from('processing_jobs')
-        .select('*')
-        .eq('id', data[0].id)
+        .select('id')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true })
+        .limit(1);
+
+      if (findError) {
+        console.error('❌ [JobProcessor] Error buscando candidates:', findError);
+        return null;
+      }
+
+      if (!candidates || candidates.length === 0) {
+        return null; // No hay trabajo
+      }
+
+      const jobId = candidates[0].id;
+
+      // 2. Intentar bloquearlo atómicamente
+      const { data: lockedJob, error: lockError } = await supabase
+        .from('processing_jobs')
+        .update({
+          status: 'downloading', // Valid status for constraint
+          worker_id: WORKER_ID,
+          started_at: new Date().toISOString()
+        })
+        .eq('id', jobId)
+        .eq('status', 'pending') // Optimistic locking: asegurar que sigue pending
+        .select()
         .single();
 
-      if (fetchError) {
-        console.error('❌ [JobProcessor] Error obteniendo job completo:', fetchError);
+      if (lockError) {
+        // Puede fallar si otro worker lo tomó entre el paso 1 y 2 (raro pero posible)
+        console.warn(`⚠️ [JobProcessor] No se pudo bloquear job ${jobId}:`, lockError.message);
         return null;
       }
 
-      return fullJob as ProcessingJob;
+      return lockedJob as ProcessingJob;
     } catch (error) {
       console.error('❌ [JobProcessor] Error en getNextPendingJob:', error);
       return null;
@@ -152,10 +175,16 @@ class JobProcessor {
 
       const transcription = await workerClient.transcribe(job.url);
 
+      const methodText = transcription.method?.includes('youtube-native')
+        ? 'Transcripción obtenida de YouTube (Nativa)'
+        : 'Transcripción generada con Whisper';
+
+      console.log(`✅ [JobProcessor] Transcripción completada (${methodText})`);
+
       await this.updateJob(job.id, {
         transcription: transcription.text,
         progress: 50,
-        current_step: 'Transcripción completada'
+        current_step: `${methodText} completada`
       });
 
       // Paso 2: Generar resumen
@@ -365,6 +394,48 @@ class JobProcessor {
 
     console.log(`🔄 [JobProcessor] Job reencolado: ${jobId}`);
     return data as ProcessingJob;
+  }
+
+  /**
+   * Resetea todos los jobs atascados (Emergency Reset)
+   * Marca como fallidos todos los jobs que no estén en estado terminal (ready, saved, failed)
+   */
+  async resetStuckJobs(userId: string): Promise<number> {
+    const supabase = getSupabase();
+
+    // Estados que consideramos "en proceso" o "atascados"
+    const processingStatuses = ['pending', 'downloading', 'transcribing', 'summarizing'];
+
+    // 1. Obtener jobs afectados para loguear
+    const { data: stuckJobs } = await supabase
+      .from('processing_jobs')
+      .select('id')
+      .eq('user_id', userId)
+      .in('status', processingStatuses);
+
+    if (!stuckJobs || stuckJobs.length === 0) return 0;
+
+    console.log(`🛑 [JobProcessor] Reseteando ${stuckJobs.length} jobs atascados para usuario ${userId}`);
+
+    // 2. Actualizar a 'failed'
+    const { error, count } = await supabase
+      .from('processing_jobs')
+      .update({
+        status: 'failed',
+        error_message: 'Proceso detenido manualmente por el usuario.',
+        current_step: 'Detenido manualmente',
+        progress: 0,
+        worker_id: null
+      })
+      .eq('user_id', userId)
+      .in('status', processingStatuses)
+      .select('id', { count: 'exact' });
+
+    if (error) {
+      throw new Error(`Error reseteando jobs: ${error.message}`);
+    }
+
+    return count || 0;
   }
 
   /**
