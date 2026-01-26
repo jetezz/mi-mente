@@ -8,8 +8,8 @@ interface Category {
 
 interface CategorySelectorProps {
   categories: Category[];
-  selected: Category | Category[] | null;
-  onSelect: (categories: any) => void;
+  selected: Category[] | Category | null;
+  onSelect: (categories: Category[]) => void;
   multiple?: boolean;
 }
 
@@ -17,7 +17,7 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Normalizar selected para que siempre sea un array internamente
+  // Normalizar selected a array siempre
   const selectedArray = Array.isArray(selected) ? selected : (selected ? [selected] : []);
 
   // Cerrar al hacer click fuera
@@ -104,7 +104,7 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
             </div>
           ) : (
             rootCategories.map(category => (
-              <CategoryItem
+              <CategorySelectorItem
                 key={category.id}
                 category={category}
                 children={getChildren(category.id)}
@@ -122,7 +122,7 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
 }
 
 // Item recursivo para mostrar jerarquía
-interface CategoryItemProps {
+interface CategorySelectorItemProps {
   category: Category;
   children: Category[];
   getChildren: (parentId: string) => Category[];
@@ -131,7 +131,7 @@ interface CategoryItemProps {
   level: number;
 }
 
-function CategoryItem({ category, children, getChildren, selected, onSelect, level }: CategoryItemProps) {
+function CategorySelectorItem({ category, children, getChildren, selected, onSelect, level }: CategorySelectorItemProps) {
   const isSelected = selected.some(s => s.id === category.id);
   const hasChildren = children.length > 0;
 
@@ -157,7 +157,7 @@ function CategoryItem({ category, children, getChildren, selected, onSelect, lev
 
       {/* Hijos recursivos */}
       {hasChildren && children.map(child => (
-        <CategoryItem
+        <CategorySelectorItem
           key={child.id}
           category={child}
           children={getChildren(child.id)}

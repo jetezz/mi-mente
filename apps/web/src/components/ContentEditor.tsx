@@ -57,7 +57,7 @@ export function ContentEditor({
 
   // State
   const [title, setTitle] = useState(content.title);
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<Category[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
 
@@ -118,7 +118,7 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
     await onSave({
       title,
       markdown,
-      category: selectedCategory || undefined,
+      category: selectedCategories.length > 0 ? selectedCategories[0] : undefined,
       originalUrl: content.originalUrl,
     });
   };
@@ -128,7 +128,7 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
     setIsCreatingCategory(true);
     try {
       const newCat = await onCreateCategory(newCategoryName.trim());
-      setSelectedCategory(newCat);
+      setSelectedCategories([newCat]);
       setNewCategoryName('');
     } catch (e) {
       console.error(e);
@@ -209,8 +209,8 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
               <div className="max-h-[300px] overflow-y-auto border border-dark-700 rounded-xl p-4 bg-dark-800/50">
                 <CategorySelector
                   categories={availableCategories}
-                  selected={selectedCategory}
-                  onSelect={setSelectedCategory}
+                  selected={selectedCategories}
+                  onSelect={setSelectedCategories}
                 />
               </div>
             </div>

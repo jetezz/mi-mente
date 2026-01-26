@@ -9,6 +9,21 @@ export default defineConfig({
   integrations: [react(), tailwind()],
   output: 'server',
   adapter: node({
-    mode: 'middleware'
-  })
+    mode: 'standalone'
+  }),
+  vite: {
+    server: {
+      allowedHosts: ['mimente.online'],
+      proxy: {
+        '/api': {
+          target: process.env.API_INTERNAL_URL || 'http://localhost:3000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        }
+      },
+      watch: {
+        usePolling: true,
+      }
+    }
+  }
 });

@@ -28,19 +28,33 @@ services:
     restart: always
     # Eliminamos el mapeo manual de puertos (ports:), Coolify lo maneja internamente
     environment:
-      - HOST=0.0.0.0
-      - PORT=3000
-      - NODE_ENV=production
-    ports:
-      - "3000:3000"
-    labels:   
-      - traefik.enable=true
-      - traefik.http.routers.mi-cerebro-web.rule=Host(`web.127.0.0.1.sslip.io`) # <--- CAMBIA ESTO
-      - traefik.http.routers.mi-cerebro-web.entryPoints=http
-      - traefik.http.services.mi-cerebro-web.loadbalancer.server.port=3000
+      - PUBLIC_API_URL=/api
+      - API_INTERNAL_URL=http://api-bun:3000 
+    env_file: .env
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    command: bun run dev --host
     networks:
       - coolify
 
+  # -------------------------------------------------------
+  # 4. CLOUDFLARE TUNNEL
+  # -------------------------------------------------------
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: brain-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+    volumes:
+      - brain-network
+    depends_on:
+      - web
+      - api-bun
+
+# Red interna privada
 networks:
   # Usamos la red predefinida de Coolify para que el proxy (Traefik) llegue a los contenedores
   coolify:
