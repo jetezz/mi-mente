@@ -1,10 +1,8 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import AuthLayout from '../layouts/AuthLayout.astro';
 import { AuthForm } from '../components/AuthForm';
 ---
 
-<Layout title="Iniciar Sesión - Hybrid Brain 🧠" description="Accede a tu segundo cerebro">
-  <main class="min-h-screen flex items-center justify-center py-12 px-4">
-    <AuthForm client:load mode="login" />
-  </main>
-</Layout>
+<AuthLayout title="Iniciar Sesión - Hybrid Brain 🧠" description="Accede a tu segundo cerebro">
+  <AuthForm client:load mode="login" />
+</AuthLayout>

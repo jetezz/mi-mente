@@ -21,13 +21,20 @@ interface JobStats {
 }
 
 export function EnhancedDashboard() {
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [customPrompt, setCustomPrompt] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [stats, setStats] = useState<JobStats | null>(null);
+
+  // Mark as mounted on client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Cargar userId desde Supabase Auth
   useEffect(() => {
@@ -40,6 +47,7 @@ export function EnhancedDashboard() {
       } else {
         setIsAuthenticated(false);
       }
+      setAuthChecked(true);
     };
 
     checkAuth();
@@ -62,12 +70,16 @@ export function EnhancedDashboard() {
   const fetchStats = async (uid: string) => {
     try {
       const response = await fetch(`${API_URL}/jobs/stats?userId=${uid}`);
+      if (!response.ok) {
+        console.warn('Stats API returned non-OK status:', response.status);
+        return;
+      }
       const data = await response.json();
       if (data.success) {
         setStats(data.stats);
       }
     } catch (err) {
-      console.error('Error fetching stats:', err);
+      console.warn('Error fetching stats (non-critical):', err);
     }
   };
 
@@ -118,8 +130,8 @@ export function EnhancedDashboard() {
     }
   };
 
-  // Si no está autenticado
-  if (!isAuthenticated && typeof window !== 'undefined') {
+  // Si no está autenticado (solo mostrar después de verificar auth)
+  if (mounted && authChecked && !isAuthenticated) {
     return (
       <div className="card p-8 text-center">
         <span className="text-6xl mb-4 block">🔒</span>
@@ -132,6 +144,19 @@ export function EnhancedDashboard() {
         <a href="/login" className="btn-primary">
           Iniciar Sesión
         </a>
+      </div>
+    );
+  }
+
+  // Loading state while checking auth (consistent on server/client)
+  if (!mounted || !authChecked) {
+    return (
+      <div className="space-y-6">
+        <div className="card p-6 space-y-4 animate-pulse">
+          <div className="h-6 bg-dark-800 rounded w-1/3"></div>
+          <div className="h-12 bg-dark-800 rounded"></div>
+          <div className="h-24 bg-dark-800 rounded"></div>
+        </div>
       </div>
     );
   }

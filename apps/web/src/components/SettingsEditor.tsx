@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
-import type { AppSetting } from '../types';
-
-import { API_URL } from '../lib/config';
-
+import { useState, useEffect } from "react";
+import type { AppSetting } from "../types";
+import { API_URL } from "../lib/config";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/Card";
+import { Button } from "./ui/Button";
+import { Textarea } from "./ui/Textarea";
+import { Badge } from "./ui/Badge";
+import { Skeleton } from "./ui/Skeleton";
+import { cn } from "@/lib/utils";
 
 export default function SettingsEditor() {
   const [settings, setSettings] = useState<AppSetting[]>([]);
@@ -22,7 +26,7 @@ export default function SettingsEditor() {
         setSettings(data.settings);
       }
     } catch (e) {
-      console.error('Error fetching settings', e);
+      console.error("Error fetching settings", e);
     } finally {
       setLoading(false);
     }
@@ -32,13 +36,15 @@ export default function SettingsEditor() {
     setSaving(key);
     try {
       const res = await fetch(`${API_URL}/settings/${key}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: newValue })
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: newValue }),
       });
       const data = await res.json();
       if (data.success) {
-        setSettings((prev: AppSetting[]) => prev.map((s: AppSetting) => s.key === key ? { ...s, value: newValue } : s));
+        setSettings((prev: AppSetting[]) =>
+          prev.map((s: AppSetting) => (s.key === key ? { ...s, value: newValue } : s)),
+        );
       }
     } catch (e) {
       console.error(`Error updating ${key}`, e);
@@ -47,27 +53,55 @@ export default function SettingsEditor() {
     }
   };
 
-  const groupedSettings = settings.reduce((acc: Record<string, AppSetting[]>, output: AppSetting) => {
-    const cat = output.category || 'general';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(output);
-    return acc;
-  }, {} as Record<string, AppSetting[]>);
+  const groupedSettings = settings.reduce(
+    (acc: Record<string, AppSetting[]>, output: AppSetting) => {
+      const cat = output.category || "general";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(output);
+      return acc;
+    },
+    {} as Record<string, AppSetting[]>,
+  );
 
-  if (loading) return <div className="p-8 text-white">Cargando configuraciones...</div>;
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-10 w-64" />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-6">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-          ⚙️ Configuraciones del Sistema
-        </h1>
-
-        {Object.entries(groupedSettings).map(([category, items]) => (
-          <div key={category} className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-purple-400 mb-4 capitalize">{category}</h2>
-            <div className="space-y-6">
-              {(items as AppSetting[]).sort((a: AppSetting, b: AppSetting) => a.key.localeCompare(b.key)).map((setting: AppSetting) => (
+    <div className="space-y-8">
+      {Object.entries(groupedSettings).map(([category, items], index) => (
+        <Card
+          key={category}
+          variant="default"
+          className="animate-fade-in"
+          style={{ animationDelay: `${index * 100}ms` }}
+        >
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 capitalize">
+              <CategoryIcon category={category} />
+              {category}
+              <Badge variant="secondary" size="sm">
+                {items.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {(items as AppSetting[])
+              .sort((a: AppSetting, b: AppSetting) => a.key.localeCompare(b.key))
+              .map((setting: AppSetting) => (
                 <SettingItem
                   key={setting.key}
                   setting={setting}
@@ -75,22 +109,41 @@ export default function SettingsEditor() {
                   isSaving={saving === setting.key}
                 />
               ))}
-            </div>
-          </div>
-        ))}
-      </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
 
-function SettingItem({ setting, onSave, isSaving }: { setting: AppSetting; onSave: (val: any) => void; isSaving: boolean }) {
+function CategoryIcon({ category }: { category: string }) {
+  const icons: Record<string, string> = {
+    general: "⚙️",
+    search: "🔍",
+    ai: "🤖",
+    notion: "📝",
+    indexing: "📊",
+  };
+  return <span className="text-xl">{icons[category] || "📋"}</span>;
+}
+
+function SettingItem({
+  setting,
+  onSave,
+  isSaving,
+}: {
+  setting: AppSetting;
+  onSave: (val: any) => void;
+  isSaving: boolean;
+}) {
   const [localValue, setLocalValue] = useState(JSON.stringify(setting.value, null, 2));
   const [isDirty, setIsDirty] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Actualizar si cambia desde fuera
   useEffect(() => {
     setLocalValue(JSON.stringify(setting.value, null, 2));
     setIsDirty(false);
+    setError(null);
   }, [setting.value]);
 
   const handleSave = () => {
@@ -98,40 +151,74 @@ function SettingItem({ setting, onSave, isSaving }: { setting: AppSetting; onSav
       const parsed = JSON.parse(localValue);
       onSave(parsed);
       setIsDirty(false);
+      setError(null);
     } catch (e) {
-      alert("Formato JSON inválido. Asegúrate de usar comillas dobles para strings.");
+      setError("Formato JSON inválido");
     }
   };
 
+  const handleChange = (value: string) => {
+    setLocalValue(value);
+    setIsDirty(true);
+    setError(null);
+  };
+
   return (
-    <div className="border-b border-gray-700 pb-4 last:border-0">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <div className="font-mono text-sm text-green-400">{setting.key}</div>
-          <div className="text-xs text-gray-400 mt-1">{setting.description}</div>
+    <div className={cn("border-b border-dark-700/50 pb-4 last:border-0 last:pb-0", "transition-colors duration-200")}>
+      <div className="flex justify-between items-start mb-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <code className="font-mono text-sm text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded">
+              {setting.key}
+            </code>
+            {isSaving && (
+              <Badge variant="warning" size="sm" className="animate-pulse">
+                Guardando...
+              </Badge>
+            )}
+            {isDirty && !isSaving && (
+              <Badge variant="secondary" size="sm">
+                Sin guardar
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-dark-400 mt-1">{setting.description}</p>
         </div>
-        {isSaving && <span className="text-yellow-400 text-xs animate-pulse">Guardando...</span>}
       </div>
 
-      <div className="flex gap-2 flex-col sm:flex-row">
-        <textarea
-          className="w-full bg-gray-900 border border-gray-600 rounded p-2 text-sm font-mono text-gray-200 focus:border-purple-500 outline-none"
+      <div className="flex gap-3 flex-col sm:flex-row">
+        <Textarea
+          className={cn("font-mono text-sm flex-1 min-h-[80px]", error && "border-red-500/50 focus:border-red-500")}
           value={localValue}
-          onChange={e => { setLocalValue(e.target.value); setIsDirty(true); }}
-          rows={Math.min(10, Math.max(1, localValue.split('\n').length))}
+          onChange={e => handleChange(e.target.value)}
+          rows={Math.min(8, Math.max(2, localValue.split("\n").length))}
           spellCheck={false}
         />
-        <button
+        <Button
           onClick={handleSave}
           disabled={!isDirty || isSaving}
-          className={`px-4 py-2 rounded text-sm font-medium self-start whitespace-nowrap transition-colors ${isDirty
-            ? 'bg-purple-600 text-white hover:bg-purple-500'
-            : 'bg-gray-700 text-gray-500 cursor-not-allowed'
-            }`}
+          variant={isDirty ? "default" : "secondary"}
+          className="self-start whitespace-nowrap"
         >
-          Guardar
-        </button>
+          {isSaving ? (
+            <>
+              <svg className="w-4 h-4 animate-spin mr-2" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Guardando
+            </>
+          ) : (
+            "Guardar"
+          )}
+        </Button>
       </div>
+
+      {error && (
+        <p className="text-red-400 text-sm mt-2 flex items-center gap-1">
+          <span>⚠️</span> {error}
+        </p>
+      )}
     </div>
   );
 }

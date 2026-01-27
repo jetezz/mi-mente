@@ -1328,16 +1328,29 @@ Instrucciones:
     const userId = query.userId as string;
 
     if (!userId) {
-      throw new Error('userId es requerido');
+      return {
+        success: false,
+        error: 'userId es requerido',
+        stats: { total: 0, pending: 0, processing: 0, ready: 0, saved: 0, failed: 0 }
+      };
     }
 
-    const stats = await jobProcessor.getJobStats(userId);
-
-    return {
-      success: true,
-      stats,
-      processorRunning: jobProcessor.isProcessorRunning()
-    };
+    try {
+      const stats = await jobProcessor.getJobStats(userId);
+      return {
+        success: true,
+        stats,
+        processorRunning: jobProcessor.isProcessorRunning()
+      };
+    } catch (err) {
+      console.warn('Error fetching job stats:', err);
+      return {
+        success: true,
+        stats: { total: 0, pending: 0, processing: 0, ready: 0, saved: 0, failed: 0 },
+        processorRunning: false,
+        warning: 'Could not fetch stats - database function may not exist'
+      };
+    }
   })
 
   // Obtener job específico

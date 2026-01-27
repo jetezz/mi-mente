@@ -1,14 +1,18 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
+import { Toaster } from '../components/ui/Sonner';
 
 export interface Props {
   title?: string;
   description?: string;
+  transition?: boolean;
 }
 
 const { 
   title = 'Hybrid Brain 🧠', 
-  description = 'Tu segundo cerebro digital potenciado por IA' 
+  description = 'Tu segundo cerebro digital potenciado por IA',
+  transition = true
 } = Astro.props;
 ---
 
@@ -34,8 +38,12 @@ const {
     <meta name="twitter:description" content={description} />
     
     <title>{title}</title>
+    
+    <!-- View Transitions -->
+    {transition && <ClientRouter />}
   </head>
   <body class="min-h-screen">
     <slot />
+    <Toaster client:load />
   </body>
 </html>
