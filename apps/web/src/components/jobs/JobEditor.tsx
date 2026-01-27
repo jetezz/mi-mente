@@ -327,78 +327,82 @@ export function JobEditor({ jobId }: JobEditorProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header con info del video */}
-      <div className="card p-5 bg-dark-900/40 border-dark-800">
+      {/* Header compacto con thumbnail y título */}
+      <div className="card p-6 bg-dark-900/40 border-dark-800">
         <div className="flex flex-col md:flex-row items-start gap-6">
+          {/* Thumbnail compacto */}
           {job.video_thumbnail ? (
-            <div className="relative group w-full md:w-auto">
+            <div className="relative group shrink-0">
               <img
                 src={job.video_thumbnail}
                 alt={title}
-                className="w-full md:w-48 aspect-video object-cover rounded-xl shadow-lg border border-white/5"
+                className="w-32 h-20 object-cover rounded-xl shadow-lg border border-white/5"
               />
             </div>
           ) : (
-            <div className="w-full md:w-48 aspect-video bg-dark-800 rounded-xl flex items-center justify-center text-4xl border border-white/5">
+            <div className="w-32 h-20 bg-dark-800 rounded-xl flex items-center justify-center text-3xl border border-white/5 shrink-0">
               🎬
             </div>
           )}
+
+          {/* Título editable */}
           <div className="flex-1 w-full">
-            <label className="text-[10px] uppercase tracking-widest font-black text-purple-400 mb-1 block">Título del Contenido</label>
+            <label className="text-[10px] uppercase tracking-widest font-black text-purple-400 mb-2 block">
+              Título del Contenido
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full text-2xl font-black bg-transparent border-b-2 border-dark-700 focus:border-purple-500 outline-none pb-2 text-white transition-all placeholder:text-dark-600"
+              className="w-full text-2xl md:text-3xl font-black bg-transparent border-b-2 border-dark-700 focus:border-purple-500 outline-none pb-3 text-white transition-all placeholder:text-dark-600"
               placeholder="Escribe un título impactante..."
             />
-            <div className="flex items-center gap-2 mt-4 text-xs font-medium text-dark-500 bg-dark-800/50 w-fit px-3 py-1.5 rounded-full border border-dark-700">
+            <div className="flex items-center gap-2 mt-3 text-xs font-medium text-dark-500 bg-dark-800/50 w-fit px-3 py-1.5 rounded-full border border-dark-700">
               <span className="text-purple-400">🔗</span>
-              <span className="truncate max-w-[200px] md:max-w-md">{job.url}</span>
+              <span className="truncate max-w-xs md:max-w-lg">{job.url}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Editor de contenido (Col 1 & 2) */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="card p-0 overflow-hidden bg-transparent min-h-[600px] border-dark-800">
-            <div className="bg-dark-900 px-6 py-3 border-b border-dark-800 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-widest text-dark-400">Resumen del Contenido</span>
-              <div className="flex gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
-                <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
-                <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
-              </div>
-            </div>
-            <div className="p-2">
-              <BlockNoteView editor={editor} theme="dark" className="min-h-[550px]" />
-            </div>
+      {/* Categorías en línea - entre título y editor */}
+      <div className="card p-5 border-dark-800 bg-dark-900/30">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <label className="text-xs font-black uppercase tracking-widest text-purple-400 whitespace-nowrap flex items-center gap-2">
+            📁 Categorías
+          </label>
+          <div className="flex-1">
+            <CategorySelector
+              categories={availableCategories}
+              selected={selectedCategories}
+              onSelect={setSelectedCategories}
+              multiple={true}
+            />
+          </div>
+          <p className="text-[10px] text-dark-500 leading-relaxed md:max-w-xs shrink-0">
+            Selecciona una o varias categorías. Se crearán en Notion si no existen.
+          </p>
+        </div>
+      </div>
+
+      {/* Editor de contenido - Ancho completo */}
+      <div className="card p-0 overflow-hidden bg-transparent border-dark-800">
+        <div className="bg-dark-900 px-6 py-3 border-b border-dark-800 flex items-center justify-between">
+          <span className="text-xs font-black uppercase tracking-widest text-dark-400">
+            Resumen del Contenido
+          </span>
+          <div className="flex gap-2">
+            <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
+            <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
+            <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
           </div>
         </div>
-
-        {/* Sidebar de ajustes (Col 3) - Etiquetas IA y Estado eliminados */}
-        <div className="space-y-6">
-          {/* Categorías */}
-          <div className="card p-6 border-dark-800 bg-dark-900/30">
-            <label className="text-xs font-black uppercase tracking-widest text-purple-400 mb-4 block">
-              📁 Categorías
-            </label>
-            <div className="space-y-4">
-              <CategorySelector
-                categories={availableCategories}
-                selected={selectedCategories}
-                onSelect={setSelectedCategories}
-                multiple={true}
-              />
-              <p className="text-[10px] text-dark-500 px-1 leading-relaxed">
-                Selecciona una o varias categorías. Se crearán en Notion si no existen.
-              </p>
-            </div>
-          </div>
-
-
+        <div className="p-4">
+          <BlockNoteView
+            editor={editor}
+            theme="dark"
+            className="min-h-[500px] md:min-h-[600px]"
+          />
         </div>
       </div>
 

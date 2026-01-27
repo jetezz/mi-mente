@@ -61,8 +61,9 @@ export function JobCard({ job, onView, onDelete, onRetry }: JobCardProps) {
 
   return (
     <Card variant="elevated" padding="sm" className="group animate-fade-in">
-      <div className="flex gap-4 p-2">
-        <div className="relative flex-shrink-0 w-40 h-24 rounded-lg overflow-hidden bg-dark-800">
+      <div className="flex flex-col sm:flex-row gap-4 p-3">
+        {/* Thumbnail */}
+        <div className="relative flex-shrink-0 w-full sm:w-44 h-28 sm:h-24 rounded-xl overflow-hidden bg-dark-800">
           {thumbnail ? (
             <img
               src={thumbnail}
@@ -76,7 +77,7 @@ export function JobCard({ job, onView, onDelete, onRetry }: JobCardProps) {
           )}
 
           {job.video_duration && (
-            <Badge variant="secondary" size="sm" className="absolute bottom-1 right-1 bg-black/80 border-0">
+            <Badge variant="secondary" size="sm" className="absolute bottom-2 right-2 bg-black/80 border-0">
               {formatDuration(job.video_duration)}
             </Badge>
           )}
@@ -91,40 +92,45 @@ export function JobCard({ job, onView, onDelete, onRetry }: JobCardProps) {
           )}
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-medium text-dark-100 truncate group-hover:text-primary-400 transition-colors">
-              {job.video_title || "Procesando..."}
-            </h3>
+        {/* Content */}
+        <div className="flex-1 min-w-0 flex flex-col justify-between">
+          {/* Header */}
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+              <h3 className="font-semibold text-dark-100 line-clamp-2 sm:truncate group-hover:text-primary-400 transition-colors">
+                {job.video_title || "Procesando..."}
+              </h3>
 
-            <Badge variant={statusVariant} size="sm" className="shrink-0">
-              {statusConfig.icon} {statusConfig.label}
-            </Badge>
+              <Badge variant={statusVariant} size="sm" className="shrink-0 w-fit">
+                {statusConfig.icon} {statusConfig.label}
+              </Badge>
+            </div>
+
+            <p className="text-sm text-dark-500 truncate mt-1">{job.url}</p>
+
+            {job.current_step && (
+              <p className={cn("text-sm mt-2 line-clamp-1", job.status === "failed" ? "text-red-400" : "text-dark-400")}>
+                {job.status === "failed" ? `❌ ${job.error_message || job.current_step}` : job.current_step}
+              </p>
+            )}
+
+            {isProcessing && (
+              <div className="mt-3">
+                <Progress value={job.progress} className="h-1.5" />
+              </div>
+            )}
           </div>
 
-          <p className="text-sm text-dark-500 truncate mt-1">{job.url}</p>
-
-          {job.current_step && (
-            <p className={cn("text-sm mt-2", job.status === "failed" ? "text-red-400" : "text-dark-400")}>
-              {job.status === "failed" ? `❌ ${job.error_message || job.current_step}` : job.current_step}
-            </p>
-          )}
-
-          {isProcessing && (
-            <div className="mt-3">
-              <Progress value={job.progress} className="h-1.5" />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between mt-3">
+          {/* Footer: date + actions */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-3 pt-3 border-t border-dark-800/50">
             <span className="text-xs text-dark-500">{formatDate(job.created_at)}</span>
 
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
               <TooltipProvider>
                 {canEdit && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="sm" variant="secondary" onClick={onView}>
+                      <Button size="sm" onClick={onView}>
                         ✏️ Editar
                       </Button>
                     </TooltipTrigger>
