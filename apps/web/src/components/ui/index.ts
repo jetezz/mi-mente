@@ -66,9 +66,7 @@ export { Toaster, toast } from "./Sonner";
 export { PageHeader } from "./PageHeader";
 export { EmptyState, EmptyStateCard } from "./EmptyState";
 
-// Legacy Components (to be deprecated)
+// Layout Components (still in use)
 export { SidebarCard, TipsCard, HowItWorksCard } from "./SidebarCard";
 export { QuickActions } from "./QuickActions";
-export { Modal, ModalFooter } from "./Modal";
-export { ToastProvider, useToast, useStandaloneToast } from "./Toast";
 export { Stepper, VerticalStepper } from "./Stepper";

@@ -9,6 +9,7 @@ import type { ProcessingJob } from '../../hooks/useJobs';
 import { JOB_STATUS_CONFIG } from '../../hooks/useJobs';
 import { supabase, getUserCategories } from '../../lib/supabase';
 import { CategorySelector } from '../CategorySelector';
+import { Button } from '../ui';
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import "@blocknote/mantine/style.css";
@@ -254,9 +255,9 @@ export function JobEditor({ jobId }: JobEditorProps) {
         <span className="text-5xl mb-6 block">🔐</span>
         <h3 className="text-xl font-bold text-white mb-2">Acceso Restringido</h3>
         <p className="text-gray-400 mb-8 max-w-sm mx-auto">Debes iniciar sesión para editar este contenido.</p>
-        <a href="/login" className="btn-primary px-8 py-3 rounded-xl shadow-lg shadow-purple-500/20">
-          Iniciar sesión
-        </a>
+        <Button asChild size="lg">
+          <a href="/login"><span>Iniciar sesión</span></a>
+        </Button>
       </div>
     );
   }
@@ -278,9 +279,9 @@ export function JobEditor({ jobId }: JobEditorProps) {
         <span className="text-5xl mb-6 block">⚠️</span>
         <h3 className="text-xl font-bold text-white mb-2">Error de carga</h3>
         <p className="text-red-400 mb-8">{error || 'Job no encontrado'}</p>
-        <a href="/jobs" className="btn-secondary px-8 py-3 rounded-xl">
-          ← Volver a la cola
-        </a>
+        <Button variant="secondary" size="lg" asChild>
+          <a href="/jobs"><span>← Volver a la cola</span></a>
+        </Button>
       </div>
     );
   }
@@ -306,18 +307,19 @@ export function JobEditor({ jobId }: JobEditorProps) {
 
         <div className="flex gap-4 justify-center">
           {job.status === 'saved' && job.notion_page_id && (
-            <a
-              href={`https://notion.so/${job.notion_page_id.replace(/-/g, '')}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary px-8 py-3 rounded-xl flex items-center gap-2"
-            >
-              <span>📄 Ver en Notion</span>
-            </a>
+            <Button size="lg" asChild>
+              <a
+                href={`https://notion.so/${job.notion_page_id.replace(/-/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <span>📄 Ver en Notion</span>
+              </a>
+            </Button>
           )}
-          <a href="/jobs" className="btn-secondary px-8 py-3 rounded-xl">
-            ← Volver a la Lista
-          </a>
+          <Button variant="secondary" size="lg" asChild>
+            <a href="/jobs"><span>← Volver a la Lista</span></a>
+          </Button>
         </div>
       </div>
     );
@@ -442,23 +444,15 @@ export function JobEditor({ jobId }: JobEditorProps) {
           </button>
 
           {/* Botón Guardar en Notion */}
-          <button
+          <Button
             onClick={handleSave}
             disabled={isSaving || isSavingDraft || !title}
-            className="flex-1 md:flex-none btn-primary px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-3 shadow-lg shadow-purple-500/25 disabled:opacity-50 disabled:grayscale transition-all hover:scale-[1.02] active:scale-[0.98]"
+            loading={isSaving}
+            size="lg"
+            className="flex-1 md:flex-none font-black uppercase tracking-widest text-xs"
           >
-            {isSaving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                Guardando...
-              </>
-            ) : (
-              <>
-                <span>💾</span>
-                Guardar en Notion
-              </>
-            )}
-          </button>
+            💾 Guardar en Notion
+          </Button>
         </div>
       </footer>
 

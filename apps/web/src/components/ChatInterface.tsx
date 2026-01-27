@@ -63,7 +63,9 @@ export function ChatInterface() {
           const apiUrl = API_URL;
           const res = await fetch(`${apiUrl}/settings`);
           const data = await res.json();
-          const setting = data.settings?.find((s: AppSetting) => s.key === "search.default_threshold");
+          const setting = data.settings?.find(
+            (s: AppSetting) => s.key === "search.default_threshold"
+          );
           if (setting) setThreshold(Number(setting.value));
         } catch (e) {
           // Ignore errors
@@ -130,7 +132,7 @@ export function ChatInterface() {
         sources: sources,
         metadata: metadata || undefined,
       };
-      setMessages(prev => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, assistantMessage]);
       resetStream();
     } else if (!isStreaming && streamError) {
       const errorMessage: Message = {
@@ -138,7 +140,7 @@ export function ChatInterface() {
         role: "assistant",
         content: `❌ Error: ${streamError}`,
       };
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
       resetStream();
     }
   }, [isStreaming, streamedContent, sources, metadata, streamError, resetStream]);
@@ -161,7 +163,7 @@ export function ChatInterface() {
       content: input,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
 
     const categoryId = selectedCategories.length > 0 ? selectedCategories[0].id : undefined;
     startStream(input, categoryId, threshold);
@@ -173,7 +175,16 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] max-h-[800px] bg-dark-900/30 rounded-xl border border-dark-800 overflow-hidden">
+    <div
+      className={cn(
+        "flex flex-col h-[calc(100vh-120px)] min-h-[500px]",
+        "bg-dark-950/50 backdrop-blur-xl",
+        "rounded-2xl border border-dark-800/50",
+        "shadow-2xl shadow-dark-950/50",
+        "overflow-hidden"
+      )}
+    >
+      {/* Header */}
       <ChatHeader
         useSemanticSearch={useSemanticSearch}
         onToggleSemantic={() => setUseSemanticSearch(!useSemanticSearch)}
@@ -184,29 +195,69 @@ export function ChatInterface() {
         onClearChat={clearChat}
         hasMessages={messages.length > 0}
         categorySelector={
-          <CategorySelector categories={categories} selected={selectedCategories} onSelect={setSelectedCategories} />
+          <CategorySelector
+            categories={categories}
+            selected={selectedCategories}
+            onSelect={setSelectedCategories}
+          />
         }
       />
 
+      {/* Messages */}
       <ChatMessages
         messages={messages}
         isStreaming={isStreaming}
         streamingContent={streamedContent}
         streamingSources={sources}
         onSuggestionSelect={handleSubmit}
+        className="flex-1"
       />
 
+      {/* Error Display */}
       {streamError && !isStreaming && messages.length === 0 && (
-        <div className="mx-4 mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
-          Error: {streamError}
+        <div className="mx-4 mb-4">
+          <div
+            className={cn(
+              "p-4 rounded-xl",
+              "bg-red-500/10 border border-red-500/20",
+              "text-sm text-red-400"
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium">Error de conexión</p>
+                <p className="text-xs text-red-400/70 mt-1">{streamError}</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
+      {/* Input */}
       <ChatInput
         onSubmit={handleSubmit}
         isLoading={isStreaming}
         disabled={!isAuthenticated}
-        placeholder={isAuthenticated ? "Escribe tu pregunta..." : "Inicia sesión para chatear"}
+        placeholder={
+          isAuthenticated
+            ? "Pregunta sobre tus notas..."
+            : "Inicia sesión para chatear"
+        }
       />
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CategorySelector } from './CategorySelector';
 import { Stepper } from './ui/Stepper';
+import { Button, Input } from './ui';
 import { BlockNoteView } from "@blocknote/mantine";
 import { useCreateBlockNote } from "@blocknote/react";
 import "@blocknote/mantine/style.css";
@@ -157,12 +158,12 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
               <label className="block text-sm font-medium text-dark-300 mb-2">
                 Título
               </label>
-              <input
+              <Input
                 type="text"
                 value={title}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                 disabled={isStreaming}
-                className="input w-full font-bold text-lg disabled:opacity-50"
+                className="font-bold text-lg"
                 placeholder="Título del documento..."
               />
             </div>
@@ -179,19 +180,20 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
             </div>
 
             <div className="flex justify-between pt-4">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={onCancel}
-                className="btn-ghost text-sm"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={goToNextStep}
                 disabled={isStreaming}
-                className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                loading={isStreaming}
               >
                 {isStreaming ? 'Generando...' : 'Continuar →'}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -219,28 +221,28 @@ ${content.keyPoints.map(kp => `- ${kp}`).join('\n')}
             <div className="flex gap-2 items-end">
               <div className="flex-1">
                 <label className="text-sm font-medium text-dark-300 mb-2 block">Nueva Categoría</label>
-                <input
+                <Input
                   type="text"
                   value={newCategoryName}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCategoryName(e.target.value)}
                   placeholder="Nombre..."
-                  className="input w-full"
                 />
               </div>
-              <button
+              <Button
+                variant="secondary"
                 onClick={handleCreateNewCategory}
                 disabled={isCreatingCategory || !newCategoryName.trim()}
-                className="btn-secondary mb-[2px]"
+                loading={isCreatingCategory}
               >
                 {isCreatingCategory ? 'Creando...' : '+ Crear'}
-              </button>
+              </Button>
             </div>
 
             <div className="flex justify-between pt-8 border-t border-dark-700">
-              <button onClick={goToPrevStep} className="btn-ghost">← Volver</button>
-              <button onClick={handleSave} disabled={isSaving} className="btn-primary">
+              <Button variant="ghost" onClick={goToPrevStep}>← Volver</Button>
+              <Button onClick={handleSave} disabled={isSaving} loading={isSaving}>
                 {isSaving ? 'Guardando...' : '💾 Guardar en Notion'}
-              </button>
+              </Button>
             </div>
           </div>
         )}

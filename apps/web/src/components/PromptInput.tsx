@@ -4,6 +4,10 @@
  */
 
 import { useState } from 'react';
+import { Textarea } from "./ui/Textarea";
+import { Button } from "./ui/Button";
+import { cn } from "../lib/utils";
+
 
 interface PromptInputProps {
   value: string;
@@ -29,10 +33,11 @@ export function PromptInput({ value, onChange, disabled = false }: PromptInputPr
   return (
     <div className="space-y-2">
       {/* Header collapsible */}
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 text-sm text-dark-400 hover:text-dark-200 transition-colors"
+        className="flex items-center gap-2 text-dark-400 hover:text-dark-200 p-0 h-auto hover:bg-transparent"
         disabled={disabled}
       >
         <svg
@@ -44,26 +49,22 @@ export function PromptInput({ value, onChange, disabled = false }: PromptInputPr
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
         <span className="font-medium">✨ Instrucciones para la IA (opcional)</span>
-      </button>
+      </Button>
 
       {/* Content */}
       {isExpanded && (
         <div className="space-y-3 pl-6">
           {/* Textarea */}
-          <textarea
+          <Textarea
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Ej: Céntrate en los aspectos prácticos, incluye ejemplos..."
             disabled={disabled}
             rows={3}
-            className={`
-              w-full px-4 py-3 bg-dark-800/50 border border-dark-700 rounded-xl
-              text-dark-100 placeholder-dark-500 text-sm
-              resize-y min-h-[80px]
-              focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500
-              transition-all
-              ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-            `}
+            className={cn(
+              "text-sm resize-y min-h-[80px]",
+              disabled && "opacity-50 cursor-not-allowed"
+            )}
           />
 
           {/* Suggestions */}
@@ -71,17 +72,17 @@ export function PromptInput({ value, onChange, disabled = false }: PromptInputPr
             <p className="text-xs text-dark-500 mb-2">Sugerencias rápidas:</p>
             <div className="flex flex-wrap gap-2">
               {PROMPT_SUGGESTIONS.map((suggestion, i) => (
-                <button
+                <Button
                   key={i}
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => handleSuggestionClick(suggestion)}
                   disabled={disabled}
-                  className="px-3 py-1 text-xs bg-dark-700/50 hover:bg-dark-700 
-                           border border-dark-600 rounded-lg text-dark-300
-                           transition-colors disabled:opacity-50"
+                  className="h-7 text-xs bg-dark-700/50 border-dark-600 hover:bg-dark-700 text-dark-300"
                 >
                   {suggestion.length > 40 ? suggestion.slice(0, 40) + '...' : suggestion}
-                </button>
+                </Button>
               ))}
             </div>
           </div>

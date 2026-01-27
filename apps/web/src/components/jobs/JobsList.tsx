@@ -300,7 +300,7 @@ export function JobsList({ onJobSelect }: JobsListProps) {
           action={
             filter === "all" && !searchQuery ? (
               <Button asChild>
-                <a href="/dashboard">➕ Añadir primer video</a>
+                <a href="/dashboard"><span>➕ Añadir primer video</span></a>
               </Button>
             ) : (
               <Button variant="secondary" onClick={clearFilters}>

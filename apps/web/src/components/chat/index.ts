@@ -1,6 +1,12 @@
+// Chat Components - Vercel AI Chatbot Inspired
 export { ChatMessages } from "./ChatMessages";
-export { MessageBubble } from "./MessageBubble";
 export { ChatInput, SuggestionChips } from "./ChatInput";
 export { ChatHeader } from "./ChatHeader";
+export { MessageBubble } from "./MessageBubble";
 export { SourceCard, SourceList } from "./SourceCard";
-export { ThinkingIndicator, StreamingCursor } from "./ThinkingIndicator";
+export {
+  ThinkingIndicator,
+  StreamingCursor,
+  LoadingDots,
+  TypingIndicator,
+} from "./ThinkingIndicator";

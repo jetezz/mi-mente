@@ -120,7 +120,7 @@ import {
 ## 2. Vercel AI Chatbot (Chat SDK)
 
 ### Overview
-Template open-source construido con Next.js y AI SDK para crear aplicaciones de chatbot.
+Template open-source construido con Next.js y AI SDK para crear aplicaciones de chatbot. En Hybrid Brain hemos adoptado los patrones visuales y de UX de este template para crear una experiencia de chat profesional.
 
 ### Features
 - Next.js App Router con RSC y Server Actions
@@ -147,29 +147,164 @@ vercel/ai-chatbot/
 └── tests/                  # E2E tests
 ```
 
-### Patrones clave a adoptar
+### Componentes UI Implementados en Hybrid Brain
+
+Basándonos en los patrones del Vercel AI Chatbot, hemos creado los siguientes componentes:
+
+#### ChatMessages
+Lista de mensajes con auto-scroll, estado vacío animado y soporte para streaming.
 
 ```tsx
-// Hook de chat
-import { useChat } from 'ai/react';
+import { ChatMessages } from "@/components/chat";
 
-function ChatComponent() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: '/api/chat',
-  });
-  
-  return (
-    <div>
-      {messages.map((msg) => (
-        <MessageBubble key={msg.id} message={msg} />
-      ))}
-      <form onSubmit={handleSubmit}>
-        <input value={input} onChange={handleInputChange} />
-        <button type="submit" disabled={isLoading}>Send</button>
-      </form>
-    </div>
-  );
+<ChatMessages
+  messages={messages}
+  isStreaming={isStreaming}
+  streamingContent={streamedContent}
+  streamingSources={sources}
+  onSuggestionSelect={handleSubmit}
+/>
+```
+
+#### MessageBubble
+Burbuja de mensaje con soporte para markdown, avatares, botón de copiar y metadatos.
+
+```tsx
+import { MessageBubble } from "@/components/chat";
+
+<MessageBubble
+  message={{
+    id: "1",
+    role: "assistant",
+    content: "Respuesta en **markdown**",
+    sources: [...],
+    metadata: { tokensUsed: 150, method: "semantic" }
+  }}
+  isStreaming={false}
+/>
+```
+
+#### ChatInput
+Input con auto-resize, indicador de teclado y botón de envío con animaciones.
+
+```tsx
+import { ChatInput, SuggestionChips } from "@/components/chat";
+
+<ChatInput
+  onSubmit={handleSubmit}
+  isLoading={isStreaming}
+  placeholder="Pregunta sobre tus notas..."
+/>
+
+<SuggestionChips
+  suggestions={["¿Qué aprendí sobre React?", "Resume las notas de IA"]}
+  onSelect={handleSubmit}
+/>
+```
+
+#### ChatHeader
+Cabecera con controles de búsqueda, umbral de similitud y selector de categorías.
+
+```tsx
+import { ChatHeader } from "@/components/chat";
+
+<ChatHeader
+  useSemanticSearch={true}
+  onToggleSemantic={toggle}
+  threshold={0.5}
+  onThresholdChange={setThreshold}
+  showThresholdSlider={true}
+  onToggleThresholdSlider={toggle}
+  onClearChat={clearChat}
+  hasMessages={messages.length > 0}
+/>
+```
+
+#### SourceCard / SourceList
+Tarjetas de fuentes citadas con indicadores de relevancia por colores.
+
+```tsx
+import { SourceList } from "@/components/chat";
+
+<SourceList
+  sources={[
+    { id: "1", title: "Mi nota", similarity: 0.85, category: "React" }
+  ]}
+  compact={true}
+/>
+```
+
+#### ThinkingIndicator / StreamingCursor
+Indicadores visuales para estados de carga y streaming.
+
+```tsx
+import { ThinkingIndicator, StreamingCursor, TypingIndicator } from "@/components/chat";
+
+// Tres puntos animados
+<ThinkingIndicator text="Buscando en tu cerebro..." />
+
+// Cursor parpadeante al final del texto en streaming
+<StreamingCursor />
+
+// Indicador tipo "está escribiendo"
+<TypingIndicator name="Hybrid Brain" />
+```
+
+### Patrones de Diseño Profesional
+
+#### Full-width Assistant Messages
+Los mensajes del asistente ocupan todo el ancho con fondo sutil:
+```tsx
+<div className={cn(
+  "py-6",
+  isUser ? "bg-transparent" : "bg-dark-900/30 hover:bg-dark-900/40"
+)}>
+```
+
+#### Avatares con Ring Effect
+```tsx
+<Avatar className={cn(
+  "ring-2 ring-offset-2 ring-offset-dark-950",
+  isUser ? "ring-dark-600" : "ring-primary-500/50 shadow-lg shadow-primary-500/20"
+)}>
+```
+
+#### Similarity Color Coding
+```tsx
+function getSimilarityConfig(similarity: number) {
+  if (similarity >= 0.7) return { color: "text-emerald-400", label: "Alta" };
+  if (similarity >= 0.5) return { color: "text-amber-400", label: "Media" };
+  return { color: "text-red-400", label: "Baja" };
 }
+```
+
+#### Glassmorphism Containers
+```tsx
+<div className="bg-dark-950/80 backdrop-blur-xl border border-dark-800/50">
+```
+
+### Hook de Chat Personalizado
+
+```tsx
+// Hook personalizado para streaming
+import { useStreamingChat } from "@/hooks/useStreamingChat";
+
+const {
+  startStream,
+  isStreaming,
+  streamedContent,
+  sources,
+  metadata,
+  error,
+  reset,
+} = useStreamingChat({
+  userId,
+  useSemantic: true,
+  threshold: 0.5,
+});
+
+// Iniciar streaming
+startStream(input, categoryId, threshold);
 ```
 
 ---

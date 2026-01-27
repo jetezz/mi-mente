@@ -150,7 +150,7 @@ export function JobCard({ job, onView, onDelete, onRetry }: JobCardProps) {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      📄 Notion
+                      <span>📄 Notion</span>
                     </a>
                   </Button>
                 )}

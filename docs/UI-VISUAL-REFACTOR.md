@@ -588,16 +588,27 @@ function ChatInterface() {
 - [x] StatusIndicator mejorado
 - [x] Skeleton loaders (ya existía de Fase 2)
 
-### Fase 5: Chat Interface (Vercel AI patterns) ✅ COMPLETADA
+### Fase 5: Chat Interface (Vercel AI patterns) ✅ ACTUALIZADA (2026-01-27)
 
 - [x] Rediseñar ChatInterface con patrones de AI Chatbot
-- [x] Implementar ChatMessages con scroll y empty state
-- [x] Crear MessageBubble component con Avatar y markdown
-- [x] Implementar streaming UI con StreamingCursor
-- [x] Añadir indicador de "thinking" (ThinkingIndicator)
-- [x] Mejorar SourceCard con similarity colors
-- [x] Crear ChatInput con auto-resize y SuggestionChips
-- [x] Crear ChatHeader con threshold slider
+- [x] Implementar ChatMessages con scroll, empty state animado y gradientes
+- [x] Crear MessageBubble con Avatar rings, markdown mejorado y botón copiar
+- [x] Implementar streaming UI con StreamingCursor y ThinkingIndicator mejorados
+- [x] Añadir indicadores de "thinking" con LoadingDots y TypingIndicator
+- [x] Mejorar SourceCard con iconos SVG, glow effects y tooltips enriquecidos
+- [x] Crear ChatInput con glassmorphism, hints de teclado y disclaimer
+- [x] Crear ChatHeader con logo gradient, slider de umbral personalizado
+- [x] Añadir SuggestionChips con iconos y animaciones escalonadas
+- [x] Implementar EmptyChat con Feature Pills y gradientes
+
+**Componentes refactorizados:**
+- `ChatMessages.tsx` - Estado vacío con gradientes, feature pills, layout centrado
+- `MessageBubble.tsx` - Full-width para asistente, avatares con rings, copiar con tooltip
+- `ChatInput.tsx` - Glassmorphism container, keyboard hints, disclaimer
+- `ChatHeader.tsx` - Logo gradient, slider personalizado con colores dinámicos
+- `SourceCard.tsx` - Iconos SVG, efectos glow por relevancia, tooltips mejorados
+- `ThinkingIndicator.tsx` - Gradientes, nuevos componentes auxiliares
+- `ChatInterface.tsx` - Container con backdrop-blur y bordes premium
 
 ### Fase 6: Dashboard & Processing ✅ COMPLETADA
 
@@ -751,6 +762,94 @@ pnpm dlx shadcn@latest add sidebar
 - View Transitions requieren `<ClientRouter />`
 - Islands mantienen estado con `transition:persist`
 - Scripts pueden necesitar `data-astro-rerun`
+
+---
+
+## 🧹 Fase 12: Cleanup de Código Legacy
+
+> **Estado:** ✅ Completado (Actualizado: 2026-01-27)
+
+### 12.1 Clases CSS Legacy (Estado Final)
+
+Las siguientes clases CSS se mantienen **solo para páginas Astro estáticas** (index.astro) para evitar JavaScript innecesario:
+
+| Clase CSS | Se mantiene para | Estado |
+|-----------|------------------|--------|
+| `.btn-primary`, `.btn-secondary` | `index.astro` | ✅ Mínimo necesario |
+| `.card`, `.card-hover` | `index.astro` | ✅ Mínimo necesario |
+| `.badge-primary` | `index.astro` | ✅ Mínimo necesario |
+| `.text-gradient` | `index.astro` | ✅ Mínimo necesario |
+| `.divider` | `index.astro` | ✅ Mínimo necesario |
+
+**Clases eliminadas:** `.btn`, `.btn-ghost`, `.btn-danger`, `.card-glow`, `.input`, `.input-lg`, `.label`, `.badge`, `.badge-success`, `.badge-warning`, `.badge-danger`, `.progress`, `.progress-bar`, `.status-*`, `.glass`, `.glass-dark`, `.text-gradient-pink`, `.skeleton`, `.tooltip`
+
+### 12.2 Archivos Migrados/Eliminados
+
+| Archivo | Cambio | Estado |
+|---------|--------|--------|
+| `components/jobs/JobEditor.tsx` | Migrar `btn-*` → `<Button>` | ✅ Completado |
+| `components/ContentEditor.tsx` | Migrar `btn-*` → `<Button>`, `input` → `<Input>` | ✅ Completado |
+| `components/IndexingModal.tsx` | Migrar `Modal` → `Dialog` | ✅ Completado |
+| `components/ui/QuickActions.tsx` | Fix `asChild` con múltiples hijos | ✅ Completado |
+| `components/EnhancedDashboard.tsx` | Fix `asChild` con múltiples hijos | ✅ Completado |
+| `components/jobs/JobCard.tsx` | Fix `asChild` con múltiples hijos | ✅ Completado |
+| `components/jobs/JobsList.tsx` | Fix `asChild` con múltiples hijos | ✅ Completado |
+| `components/ui/Button.tsx` | Separar lógica `asChild` de `loading` | ✅ Completado |
+| `components/ui/Modal.tsx` | **ELIMINADO** - Reemplazado por Dialog | 🗑️ Eliminado |
+| `components/ui/Toast.tsx` | **ELIMINADO** - Reemplazado por Sonner | 🗑️ Eliminado |
+| `styles/global.css` | Limpieza de clases CSS no utilizadas | ✅ Completado |
+
+### 12.3 Componentes UI (Estado Final)
+
+| Componente | Estado | Notas |
+|------------|--------|-------|
+| `Modal` + `ModalFooter` | 🗑️ **Eliminado** | Usar `Dialog` |
+| `ToastProvider`, `useToast` | 🗑️ **Eliminado** | Usar `toast` de Sonner |
+| `Stepper`, `VerticalStepper` | ✅ En uso | En `ContentEditor.tsx` |
+| `SidebarCard`, `QuickActions` | ✅ En uso | En múltiples páginas |
+
+### 12.4 Dependencias (Estado Final)
+
+| Dependencia | Estado | Notas |
+|-------------|--------|-------|
+| `@mantine/core` | ✅ Mantener | Requerido por BlockNote |
+| `@mantine/hooks` | ✅ Mantener | Requerido por BlockNote |
+| `@blocknote/mantine` | ✅ En uso | Editor de texto rico |
+| `@radix-ui/react-toast` | ⚠️ Revisar | Posible duplicado con Sonner |
+
+### 12.5 Reglas de Migración
+
+#### Uso correcto de `Button asChild`
+
+Cuando usas `Button asChild` con un enlace `<a>`, el contenido debe ser **un único elemento React**:
+
+```tsx
+// ❌ Incorrecto - múltiples hijos causa error
+<Button asChild>
+  <a href="/page">🔄 Texto</a>  
+</Button>
+
+// ✅ Correcto - un único hijo
+<Button asChild>
+  <a href="/page"><span>🔄 Texto</span></a>
+</Button>
+```
+
+#### Migración de clases CSS a componentes
+
+```tsx
+// ❌ Antes (clase CSS legacy)
+<button className="btn-primary px-8 py-3">
+  Guardar
+</button>
+
+// ✅ Después (componente React)
+import { Button } from '@/components/ui';
+
+<Button size="lg">
+  Guardar
+</Button>
+```
 
 ---
 

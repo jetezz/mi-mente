@@ -4,6 +4,8 @@
  */
 
 import type { ReactNode } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from "./Card";
+
 
 interface SidebarCardProps {
   icon: string;
@@ -13,13 +15,13 @@ interface SidebarCardProps {
 
 export function SidebarCard({ icon, title, children }: SidebarCardProps) {
   return (
-    <div className="card p-4">
+    <Card padding="sm">
       <h3 className="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4 flex items-center gap-2">
         <span>{icon}</span>
         {title}
       </h3>
       {children}
-    </div>
+    </Card>
   );
 }
 
