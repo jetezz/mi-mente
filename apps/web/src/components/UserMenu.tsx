@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
-import { supabase, getUser } from '../lib/supabase';
-import type { User } from '@supabase/supabase-js';
+import { useState, useEffect, useRef } from "react";
+import { supabase, getUser } from "../lib/supabase";
+import type { User } from "@supabase/supabase-js";
+import { Button } from "./ui/Button";
 
 export function UserMenu() {
   const [user, setUser] = useState<User | null>(null);
@@ -12,14 +13,19 @@ export function UserMenu() {
     // Cargar usuario
     const loadUser = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
 
         if (session) {
           // Verificar si el usuario existe realmente en la DB
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          const {
+            data: { user },
+            error: userError,
+          } = await supabase.auth.getUser();
 
           if (userError || !user) {
-            console.warn('Ghost user detected or session invalid');
+            console.warn("Ghost user detected or session invalid");
             await supabase.auth.signOut();
             setUser(null);
           } else {
@@ -29,7 +35,7 @@ export function UserMenu() {
           setUser(null);
         }
       } catch (error) {
-        console.error('Error loading user:', error);
+        console.error("Error loading user:", error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -39,7 +45,9 @@ export function UserMenu() {
     loadUser();
 
     // Escuchar cambios
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
     });
 
@@ -53,61 +61,70 @@ export function UserMenu() {
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleSignOut = async () => {
     try {
       // Importar helper de signOut que ya es robusto
-      const { signOut } = await import('../lib/supabase');
+      const { signOut } = await import("../lib/supabase");
       await signOut();
     } catch (error) {
-      console.error('Error in handleSignOut:', error);
+      console.error("Error in handleSignOut:", error);
     } finally {
       // Forzar redirección y limpieza local
       setUser(null);
       setIsOpen(false);
-      window.location.href = '/';
+      window.location.href = "/";
     }
   };
 
+  // Ancho fijo para evitar layout shift
+  const containerClass = "w-40 flex items-center justify-end relative";
+
   if (loading) {
     return (
-      <div className="w-10 h-10 rounded-full bg-dark-700 animate-pulse" />
+      <div className={containerClass}>
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-dark-700 animate-pulse" />
+          <div className="hidden sm:block w-16 h-4 bg-dark-700 rounded animate-pulse" />
+          <div className="w-4 h-4 bg-dark-700 rounded animate-pulse" />
+        </div>
+      </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="flex items-center gap-3">
-        <a
-          href="/login"
-          className="btn-primary"
-        >
-          Iniciar Sesión
-        </a>
+      <div className={containerClass}>
+        <Button asChild size="sm">
+          <a href="/login">Iniciar Sesión</a>
+        </Button>
       </div>
     );
   }
 
-  const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuario';
-  const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+  const displayName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Usuario";
+  const initials = displayName
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className={containerClass} ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 p-1 rounded-full hover:bg-dark-700/50 transition-colors"
+        className="flex items-center gap-2 p-1 rounded-full hover:bg-dark-700/50 transition-colors"
       >
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-pink flex items-center justify-center text-sm font-bold text-white">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-accent-pink flex items-center justify-center text-xs font-bold text-white shrink-0">
           {initials}
         </div>
-        <span className="hidden sm:block text-dark-200 font-medium max-w-[120px] truncate">
-          {displayName}
-        </span>
+        <span className="hidden sm:block text-dark-200 font-medium text-sm w-16 truncate">{displayName}</span>
         <svg
-          className={`w-4 h-4 text-dark-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-dark-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

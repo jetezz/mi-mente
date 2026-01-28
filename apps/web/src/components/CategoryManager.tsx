@@ -1,7 +1,17 @@
-import { useState, useEffect } from 'react';
-import { supabase, getUserCategories, createCategory, deleteCategory, updateCategory, getCategoryTree } from '../lib/supabase';
-import { CategoryTree } from './CategoryTree';
-import type { User } from '@supabase/supabase-js';
+import { useState, useEffect } from "react";
+import {
+  supabase,
+  getUserCategories,
+  createCategory,
+  deleteCategory,
+  updateCategory,
+  getCategoryTree,
+} from "../lib/supabase";
+import { CategoryTree } from "./CategoryTree";
+import { Button } from "./ui/Button";
+import { Spinner } from "./ui/Spinner";
+import { EmptyState } from "./ui/EmptyState";
+import type { User } from "@supabase/supabase-js";
 
 interface Category {
   id: string;
@@ -15,7 +25,7 @@ export function CategoryManager() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryTree, setCategoryTree] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [selectedParent, setSelectedParent] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -35,9 +45,11 @@ export function CategoryManager() {
   }, [successMessage]);
 
   const checkAuthAndLoad = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
-      window.location.href = '/login';
+      window.location.href = "/login";
       return;
     }
     setUser(session.user);
@@ -52,7 +64,7 @@ export function CategoryManager() {
       const tree = await getCategoryTree();
       setCategoryTree(tree);
     } catch (err) {
-      console.error('Error loading categories:', err);
+      console.error("Error loading categories:", err);
     }
   };
 
@@ -65,12 +77,12 @@ export function CategoryManager() {
 
     try {
       await createCategory(newCategoryName.trim(), selectedParent || undefined);
-      setNewCategoryName('');
+      setNewCategoryName("");
       setSelectedParent(null);
-      setSuccessMessage('Categoría creada correctamente');
+      setSuccessMessage("Categoría creada correctamente");
       await loadCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear categoría');
+      setError(err instanceof Error ? err.message : "Error al crear categoría");
     } finally {
       setCreating(false);
     }
@@ -95,23 +107,23 @@ export function CategoryManager() {
 
       await loadCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al mover categoría');
+      setError(err instanceof Error ? err.message : "Error al mover categoría");
     } finally {
       setUpdating(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar esta categoría? Las subcategorías quedarán huérfanas.')) {
+    if (!confirm("¿Estás seguro de eliminar esta categoría? Las subcategorías quedarán huérfanas.")) {
       return;
     }
 
     try {
       await deleteCategory(id);
-      setSuccessMessage('Categoría eliminada correctamente');
+      setSuccessMessage("Categoría eliminada correctamente");
       await loadCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar categoría');
+      setError(err instanceof Error ? err.message : "Error al eliminar categoría");
     }
   };
 
@@ -120,29 +132,32 @@ export function CategoryManager() {
 
     try {
       await updateCategory(id, { name: newName.trim() });
-      setSuccessMessage('Categoría renombrada correctamente');
+      setSuccessMessage("Categoría renombrada correctamente");
       await loadCategories();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al renombrar categoría');
+      setError(err instanceof Error ? err.message : "Error al renombrar categoría");
     }
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500" />
+        <Spinner size="lg" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="text-center py-12">
-        <p className="text-dark-400">Debes iniciar sesión para ver tus categorías</p>
-        <a href="/login" className="btn-primary mt-4 inline-block">
-          Iniciar Sesión
-        </a>
-      </div>
+      <EmptyState
+        icon="🔒"
+        title="Inicia sesión para continuar"
+        description="Debes iniciar sesión para ver tus categorías"
+        action={{
+          label: "Iniciar Sesión",
+          onClick: () => (window.location.href = "/login"),
+        }}
+      />
     );
   }
 
@@ -152,7 +167,12 @@ export function CategoryManager() {
       {error && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
           <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           {error}
         </div>
@@ -161,7 +181,12 @@ export function CategoryManager() {
       {successMessage && (
         <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 text-sm flex items-center gap-2 animate-pulse">
           <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           {successMessage}
         </div>
@@ -177,32 +202,28 @@ export function CategoryManager() {
           <input
             type="text"
             value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
+            onChange={e => setNewCategoryName(e.target.value)}
             placeholder="Nombre de la categoría..."
             className="flex-1 px-4 py-2 rounded-xl bg-dark-700 border border-dark-600 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none text-dark-100 placeholder-dark-500 transition-colors"
             required
           />
 
           <select
-            value={selectedParent || ''}
-            onChange={(e) => setSelectedParent(e.target.value || null)}
+            value={selectedParent || ""}
+            onChange={e => setSelectedParent(e.target.value || null)}
             className="px-4 py-2 rounded-xl bg-dark-700 border border-dark-600 focus:border-primary-500 outline-none text-dark-100"
           >
             <option value="">Sin padre (raíz)</option>
-            {categories.map((cat) => (
+            {categories.map(cat => (
               <option key={cat.id} value={cat.id}>
                 📁 {cat.name}
               </option>
             ))}
           </select>
 
-          <button
-            type="submit"
-            disabled={creating || !newCategoryName.trim()}
-            className="btn-primary px-6 disabled:opacity-50"
-          >
-            {creating ? 'Creando...' : 'Crear'}
-          </button>
+          <Button type="submit" disabled={creating || !newCategoryName.trim()}>
+            {creating ? "Creando..." : "Crear"}
+          </Button>
         </form>
       </div>
 
@@ -214,7 +235,7 @@ export function CategoryManager() {
           </h2>
           {updating && (
             <div className="flex items-center gap-2 text-primary-400 text-sm">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-500" />
+              <Spinner size="sm" />
               Actualizando...
             </div>
           )}
@@ -223,12 +244,23 @@ export function CategoryManager() {
         {/* Instrucciones de drag and drop */}
         {categoryTree.length > 0 && (
           <div className="mb-4 p-3 rounded-lg bg-dark-800/50 border border-dark-700 text-dark-400 text-sm flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              className="w-5 h-5 text-primary-400 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>
-              <strong className="text-dark-300">Arrastra</strong> una categoría sobre otra para convertirla en subcategoría,
-              o <strong className="text-dark-300">suéltala en la zona superior</strong> para convertirla en categoría raíz.
+              <strong className="text-dark-300">Arrastra</strong> una categoría sobre otra para convertirla en
+              subcategoría, o <strong className="text-dark-300">suéltala en la zona superior</strong> para convertirla
+              en categoría raíz.
             </span>
           </div>
         )}
@@ -258,7 +290,9 @@ export function CategoryManager() {
           </li>
           <li className="flex items-start gap-2">
             <span className="text-primary-400">•</span>
-            <span><strong className="text-dark-300">Arrastra y suelta</strong> para reorganizar la jerarquía fácilmente</span>
+            <span>
+              <strong className="text-dark-300">Arrastra y suelta</strong> para reorganizar la jerarquía fácilmente
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-primary-400">•</span>

@@ -1,55 +1,18 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
 import JobsList from '../../components/jobs/JobsList.tsx';
-import { SidebarCard, QuickActions, TipsCard } from '../../components/ui';
-
-const tips = [
-  'Los videos se procesan en segundo plano',
-  'Cuando un video está "Listo", puedes editarlo antes de guardarlo',
-  'Los videos guardados se sincronizan con Notion'
-];
-
-const actions = [
-  { icon: '➕', label: 'Añadir video', href: '/dashboard' },
-  { icon: '💬', label: 'Chat', href: '/chat' },
-  { icon: '🔍', label: 'Indexación', href: '/indexing' }
-];
 ---
 
-<AppLayout title="Cola de Procesamiento" maxWidth="5xl">
-  <!-- Main Content -->
-  <div slot="main" class="lg:col-span-3 space-y-6">
+<AppLayout 
+  title="Cola de Procesamiento" 
+  showSidebar={false} 
+  fullWidth={true}
+  showStatusIndicator={false}
+>
+  <!-- Main Content - Full width -->
+  <div slot="main" class="w-full">
     <JobsList client:load />
   </div>
-
-  <!-- Sidebar -->
-  <aside slot="sidebar" class="space-y-6">
-    <!-- Quick Actions -->
-    <SidebarCard title="Acciones Rápidas" icon="⚡" client:load>
-      <QuickActions actions={actions} client:load />
-    </SidebarCard>
-
-    <!-- Cómo funciona -->
-    <SidebarCard title="Cómo funciona" icon="📖" client:load>
-      <ol class="space-y-3 text-sm text-gray-300">
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold">1</span>
-          <span>Añade videos desde el Dashboard</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold">2</span>
-          <span>Se procesan en segundo plano</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs font-bold">3</span>
-          <span>Edita y guarda cuando estén listos</span>
-        </li>
-      </ol>
-    </SidebarCard>
-
-    <!-- Tips -->
-    <TipsCard tips={tips} client:load />
-  </aside>
 </AppLayout>
 
 <style>

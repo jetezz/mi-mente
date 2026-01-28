@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import { Input } from "./ui/Input";
+import { Button } from "./ui/Button";
+import { cn } from "../lib/utils";
+
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
@@ -60,41 +64,37 @@ export function UrlInput({ onSubmit, isLoading = false, disabled = false }: UrlI
         </div>
 
         {/* Input */}
-        <input
-          type="url"
-          value={url}
-          onChange={handleChange}
-          placeholder="Pega un link de YouTube o Instagram..."
-          disabled={disabled || isLoading}
-          className={`
-            w-full pl-12 pr-36 py-4 text-lg
-            bg-dark-800/50 backdrop-blur-sm border rounded-2xl
-            text-dark-100 placeholder-dark-500
-            transition-all duration-300
-            focus:outline-none focus:ring-2 focus:ring-primary-500/50
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${isValid === false ? 'border-red-500/50 focus:ring-red-500/50' :
-              isValid === true ? 'border-emerald-500/50 focus:ring-emerald-500/50' :
-                'border-dark-700 focus:border-primary-500'}
-          `}
-        />
+        <div className="relative flex-1">
+          <Input
+            type="url"
+            value={url}
+            onChange={handleChange}
+            placeholder="Pega un link de YouTube o Instagram..."
+            disabled={disabled || isLoading}
+            className={cn(
+              "pl-12 pr-4 py-6 text-lg rounded-xl transition-all",
+              isValid === false ? "border-red-500/50 focus-visible:ring-red-500/50" :
+                isValid === true ? "border-emerald-500/50 focus-visible:ring-emerald-500/50" : ""
+            )}
+          />
+        </div>
 
         {/* Submit button */}
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
-          <button
+          <Button
             type="submit"
             disabled={!isValid || isLoading || disabled}
-            className={`
-              flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium
-              transition-all duration-300
-              ${isValid && !isLoading && !disabled
-                ? 'bg-gradient-to-r from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-xl hover:shadow-primary-500/30'
-                : 'bg-dark-700 text-dark-500 cursor-not-allowed'}
-            `}
+            size="sm"
+            className={cn(
+              "font-medium transition-all duration-300",
+              isValid && !isLoading && !disabled
+                ? "bg-gradient-to-r from-primary-600 to-primary-500 shadow-lg hover:shadow-xl hover:shadow-primary-500/30"
+                : ""
+            )}
           >
             {isLoading ? (
               <>
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                 </svg>
@@ -102,13 +102,13 @@ export function UrlInput({ onSubmit, isLoading = false, disabled = false }: UrlI
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 <span>Procesar</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

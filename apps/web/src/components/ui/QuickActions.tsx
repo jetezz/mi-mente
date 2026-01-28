@@ -4,6 +4,8 @@
  */
 
 import { SidebarCard } from './SidebarCard';
+import { Button } from "./Button";
+
 
 interface QuickAction {
   icon: string;
@@ -24,23 +26,31 @@ export function QuickActions({ icon = '⚡', title = 'Acciones rápidas', action
       <div className="flex flex-col gap-2">
         {actions.map((action, i) => (
           action.external ? (
-            <button
+            <Button
               key={i}
+              variant="secondary"
+              size="sm"
               onClick={() => window.open(action.href, '_blank')}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm text-left"
+              className="justify-start h-auto py-2 px-3 bg-dark-700/50 hover:bg-dark-700 text-dark-300 font-normal"
             >
-              <span>{action.icon}</span>
+              <span className="mr-2">{action.icon}</span>
               {action.label}
-            </button>
+            </Button>
           ) : (
-            <a
+            <Button
               key={i}
-              href={action.href}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-700/50 hover:bg-dark-700 transition-colors text-dark-300 text-sm"
+              variant="secondary"
+              size="sm"
+              className="justify-start h-auto py-2 px-3 bg-dark-700/50 hover:bg-dark-700 text-dark-300 font-normal"
+              asChild
             >
-              <span>{action.icon}</span>
-              {action.label}
-            </a>
+              <a href={action.href}>
+                <span className="flex items-center">
+                  <span className="mr-2">{action.icon}</span>
+                  {action.label}
+                </span>
+              </a>
+            </Button>
           )
         ))}
       </div>

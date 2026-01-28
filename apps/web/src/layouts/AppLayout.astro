@@ -1,47 +1,79 @@
 ---
-/**
- * AppLayout - Layout reutilizable para páginas de la aplicación
- * Incluye Header, grid responsive y slots para main y sidebar
- */
 import Layout from './Layout.astro';
 import Header from '../components/Header.astro';
 import { StatusIndicator } from '../components/StatusIndicator';
+import { fade, slide } from 'astro:transitions';
 
 export interface Props {
   title: string;
   description?: string;
   showStatusIndicator?: boolean;
+  fullWidth?: boolean;
+  showSidebar?: boolean;
 }
 
 const { 
   title, 
   description = '', 
-  showStatusIndicator = true 
+  showStatusIndicator = true,
+  fullWidth = false,
+  showSidebar = true
 } = Astro.props;
 ---
 
 <Layout title={title} description={description}>
   <Header showDashboardLink={true} />
   
-  <main class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-5xl mx-auto">
+  <main 
+    class="min-h-screen py-8 px-4 sm:px-6 lg:px-8"
+    transition:animate={fade({ duration: '0.3s' })}
+  >
+    <div class:list={[
+      "mx-auto",
+      fullWidth ? "max-w-7xl" : "max-w-5xl"
+    ]}>
       <!-- Page Header Slot -->
-      <slot name="header" />
+      <div transition:name="page-header" transition:animate="slide">
+        <slot name="header" />
+      </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <!-- Main content: 3 cols -->
-        <div class="lg:col-span-3">
+      {showSidebar ? (
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <!-- Main content: 3 cols -->
+          <div 
+            class="lg:col-span-3"
+            transition:name="main-content"
+          >
+            <slot name="main" />
+            <slot />
+          </div>
+
+          <!-- Sidebar: 1 col -->
+          <aside 
+            class="space-y-6 lg:sticky lg:top-24 lg:self-start"
+            transition:name="sidebar"
+            transition:animate={fade({ duration: '0.2s' })}
+          >
+            {showStatusIndicator && <StatusIndicator client:load />}
+            <slot name="sidebar" />
+          </aside>
+        </div>
+      ) : (
+        <div transition:name="main-content">
           <slot name="main" />
-          <!-- Default slot también va al main -->
           <slot />
         </div>
-
-        <!-- Sidebar: 1 col -->
-        <div class="space-y-6">
-          {showStatusIndicator && <StatusIndicator client:load />}
-          <slot name="sidebar" />
-        </div>
-      </div>
+      )}
     </div>
   </main>
 </Layout>
+
+<style>
+  main {
+    view-transition-name: main-area;
+  }
+  
+  aside {
+    view-transition-name: sidebar-area;
+  }
+</style>

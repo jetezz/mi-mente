@@ -1,65 +1,105 @@
 ---
 import { UserMenu } from './UserMenu';
+import { fade } from 'astro:transitions';
 
 export interface Props {
   showDashboardLink?: boolean;
 }
 
 const { showDashboardLink = true } = Astro.props;
-const currentPath = Astro.url.pathname;
 
+// Links de navegación (el estado activo se gestiona con JS para soportar View Transitions)
 const navLinks = [
-  { href: '/dashboard', label: '📥 Dashboard', show: showDashboardLink },
-  { href: '/jobs', label: '🔄 Cola', show: true },
-  { href: '/chat', label: '🧠 Chat', show: true },
-  { href: '/indexing', label: '🔮 Indexación', show: true },
-  { href: '/categories', label: '📂 Categorías', show: true },
-  { href: '/settings', label: '⚙️ Config', show: true },
-  { href: '/debug', label: '🔧 Debug', show: true },
+  { href: '/dashboard', label: 'Dashboard', icon: '📥', show: showDashboardLink },
+  { href: '/jobs', label: 'Cola', icon: '📋', show: true },
+  { href: '/chat', label: 'Chat', icon: '💬', show: true },
+  { href: '/indexing', label: 'Indexación', icon: '🔮', show: true },
+  { href: '/categories', label: 'Categorías', icon: '📂', show: true },
+  { href: '/settings', label: 'Config', icon: '⚙️', show: true },
+  { href: '/debug', label: 'Debug', icon: '🔧', show: true },
 ];
 ---
 
-<header class="sticky top-0 z-50 backdrop-blur-xl bg-dark-950/80 border-b border-dark-800/50">
+<header 
+  class="sticky top-0 z-50 bg-dark-950/90 backdrop-blur-2xl border-b border-dark-800/60"
+  transition:name="main-header"
+  transition:persist
+>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <!-- Logo -->
-      <a href="/" class="flex items-center gap-3 group">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-2xl shadow-lg shadow-primary-500/25 group-hover:shadow-xl group-hover:shadow-primary-500/30 transition-shadow">
-          🧠
+      <a 
+        href="/" 
+        class="flex items-center gap-3 group"
+        transition:name="logo"
+      >
+        <div class="relative">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 flex items-center justify-center text-xl shadow-lg shadow-primary-500/30 group-hover:shadow-xl group-hover:shadow-primary-500/40 group-hover:scale-105 transition-all duration-300">
+            🧠
+          </div>
+          <div class="absolute -inset-1 bg-gradient-to-r from-primary-500/20 to-accent-cyan/20 rounded-xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
-        <span class="text-xl font-bold text-dark-100 hidden sm:block">
+        <span class="text-lg font-bold text-dark-100 hidden sm:block tracking-tight">
           Hybrid Brain
         </span>
       </a>
 
       <!-- Desktop Navigation -->
-      <nav class="hidden sm:flex items-center gap-4 sm:gap-6">
-        {navLinks.filter(link => link.show).map(link => (
+      <nav class="hidden lg:flex items-center">
+        <div class="flex items-center gap-1 bg-dark-900/50 rounded-2xl p-1.5 border border-dark-800/50">
+          {navLinks.filter(link => link.show).map(link => (
+            <a 
+              href={link.href} 
+              data-nav-link
+              data-href={link.href}
+              class="nav-link relative px-4 py-2 rounded-xl transition-all duration-300 font-medium text-sm flex items-center gap-2 text-dark-400 hover:text-dark-200 hover:bg-dark-800/50"
+            >
+              <span class="nav-icon transition-transform duration-300">
+                {link.icon}
+              </span>
+              <span>{link.label}</span>
+              <span class="nav-indicator absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-gradient-to-r from-primary-500 to-accent-cyan rounded-full opacity-0 transition-opacity duration-300"></span>
+            </a>
+          ))}
+        </div>
+        
+        <!-- User Menu -->
+        <div class="ml-4 pl-4 border-l border-dark-800/50">
+          <UserMenu client:load />
+        </div>
+      </nav>
+
+      <!-- Tablet Navigation (smaller screens) -->
+      <nav class="hidden md:flex lg:hidden items-center gap-1">
+        {navLinks.filter(link => link.show).slice(0, 5).map(link => (
           <a 
             href={link.href} 
-            class:list={[
-              "transition-colors font-medium",
-              currentPath === link.href 
-                ? "text-primary-400" 
-                : "text-dark-400 hover:text-dark-100"
-            ]}
+            data-nav-link
+            data-href={link.href}
+            class="nav-link p-2.5 rounded-xl transition-all duration-200 text-dark-400 hover:text-dark-200 hover:bg-dark-800/50"
+            title={link.label}
           >
-            {link.label}
+            <span class="nav-icon text-lg">{link.icon}</span>
           </a>
         ))}
         
-        <!-- User Menu (React component) -->
-        <UserMenu client:load />
+        <div class="ml-2 pl-2 border-l border-dark-700">
+          <UserMenu client:load />
+        </div>
       </nav>
 
       <!-- Mobile Menu Button -->
       <button 
         id="mobile-menu-button"
-        class="sm:hidden p-2 rounded-lg hover:bg-dark-800 transition-colors"
+        class="md:hidden p-2.5 rounded-xl bg-dark-800/50 hover:bg-dark-800 transition-all duration-200 text-dark-300 hover:text-white border border-dark-700/50"
         aria-label="Abrir menú"
+        aria-expanded="false"
       >
-        <svg class="w-6 h-6 text-dark-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="w-5 h-5 menu-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg class="w-5 h-5 close-icon hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
     </div>
@@ -68,51 +108,169 @@ const navLinks = [
   <!-- Mobile Menu -->
   <div 
     id="mobile-menu"
-    class="hidden sm:hidden bg-dark-900 border-t border-dark-800"
+    class="hidden md:hidden bg-dark-900/98 backdrop-blur-2xl border-t border-dark-800/50 absolute left-0 right-0 top-full shadow-2xl shadow-dark-950/50"
   >
-    <nav class="px-4 py-4 space-y-2">
+    <nav class="px-4 py-4 space-y-1 max-h-[calc(100vh-4rem)] overflow-y-auto">
       {navLinks.filter(link => link.show).map(link => (
         <a 
           href={link.href} 
-          class:list={[
-            "block px-4 py-3 rounded-lg transition-colors",
-            currentPath === link.href 
-              ? "bg-primary-500/20 text-primary-400" 
-              : "text-dark-300 hover:bg-dark-800"
-          ]}
+          data-nav-link
+          data-href={link.href}
+          class="nav-link flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all duration-200 text-dark-300 hover:bg-dark-800/50 hover:text-dark-100"
         >
-          {link.label}
+          <span class="nav-icon text-xl">{link.icon}</span>
+          <span class="font-medium">{link.label}</span>
+          <span class="nav-dot ml-auto w-2 h-2 rounded-full bg-primary-500 opacity-0 transition-opacity duration-300"></span>
         </a>
       ))}
       
-      <div class="pt-4 border-t border-dark-700">
+      <div class="pt-4 mt-4 border-t border-dark-700/50">
         <UserMenu client:load />
       </div>
     </nav>
   </div>
 </header>
 
-<script>
-  const button = document.getElementById('mobile-menu-button');
-  const menu = document.getElementById('mobile-menu');
+<style>
+  /* Estados activos controlados por JS - CSS nativo para compatibilidad con Tailwind v4 */
+  .nav-link.active {
+    background-color: rgb(30 30 36 / 1); /* dark-800 */
+    color: white;
+    box-shadow: 0 10px 15px -3px rgb(10 10 14 / 0.5), 0 4px 6px -4px rgb(10 10 14 / 0.5);
+  }
   
-  button?.addEventListener('click', () => {
-    menu?.classList.toggle('hidden');
-    
-    // Update icon
-    const isOpen = !menu?.classList.contains('hidden');
-    const svg = button.querySelector('svg');
-    if (svg) {
-      svg.innerHTML = isOpen 
-        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />'
-        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />';
+  .nav-link.active .nav-icon {
+    transform: scale(1.1);
+  }
+  
+  .nav-link.active .nav-indicator {
+    opacity: 1;
+  }
+  
+  .nav-link.active .nav-dot {
+    opacity: 1;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  /* Mobile active state */
+  #mobile-menu .nav-link.active {
+    background-color: rgb(30 30 36 / 1);
+    color: white;
+    border: 1px solid rgb(45 45 55 / 0.5);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
     }
+    50% {
+      opacity: 0.5;
+    }
+  }
+</style>
+
+<script>
+  // Función para determinar si un link está activo
+  function isActive(linkHref: string, currentPath: string): boolean {
+    const normalizedCurrent = currentPath.replace(/\/$/, '') || '/';
+    const normalizedLink = linkHref.replace(/\/$/, '') || '/';
+    
+    if (normalizedCurrent === normalizedLink) return true;
+    if (normalizedCurrent.startsWith(normalizedLink + '/')) return true;
+    
+    return false;
+  }
+
+  // Actualiza el estado activo de todos los links de navegación
+  function updateActiveNav() {
+    const currentPath = window.location.pathname;
+    const navLinks = document.querySelectorAll('[data-nav-link]');
+    
+    navLinks.forEach(link => {
+      const href = link.getAttribute('data-href') || link.getAttribute('href');
+      if (href) {
+        if (isActive(href, currentPath)) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      }
+    });
+  }
+
+  // Mobile menu functionality
+  function setupMobileMenu() {
+    const button = document.getElementById('mobile-menu-button');
+    const menu = document.getElementById('mobile-menu');
+    const menuIcon = button?.querySelector('.menu-icon');
+    const closeIcon = button?.querySelector('.close-icon');
+
+    function toggleMenu() {
+      const isOpen = !menu?.classList.contains('hidden');
+      
+      if (isOpen) {
+        menu?.classList.add('hidden');
+        menuIcon?.classList.remove('hidden');
+        closeIcon?.classList.add('hidden');
+        button?.setAttribute('aria-expanded', 'false');
+      } else {
+        menu?.classList.remove('hidden');
+        menuIcon?.classList.add('hidden');
+        closeIcon?.classList.remove('hidden');
+        button?.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    function closeMenu() {
+      menu?.classList.add('hidden');
+      menuIcon?.classList.remove('hidden');
+      closeIcon?.classList.add('hidden');
+      button?.setAttribute('aria-expanded', 'false');
+    }
+
+    // Remove old listeners by cloning
+    const newButton = button?.cloneNode(true);
+    if (button && newButton) {
+      button.parentNode?.replaceChild(newButton, button);
+      newButton.addEventListener('click', toggleMenu);
+    }
+    
+    document.querySelectorAll('#mobile-menu a').forEach(link => {
+      link.addEventListener('click', closeMenu);
+    });
+
+    document.addEventListener('click', (e) => {
+      const btn = document.getElementById('mobile-menu-button');
+      const mnu = document.getElementById('mobile-menu');
+      if (!btn?.contains(e.target as Node) && !mnu?.contains(e.target as Node)) {
+        closeMenu();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeMenu();
+      }
+    });
+  }
+
+  // Inicialización
+  function init() {
+    updateActiveNav();
+    setupMobileMenu();
+  }
+
+  // Ejecutar en carga inicial
+  init();
+
+  // Ejecutar en cada navegación con View Transitions
+  document.addEventListener('astro:page-load', () => {
+    init();
   });
 
-  // Close menu on navigation
-  document.querySelectorAll('#mobile-menu a').forEach(link => {
-    link.addEventListener('click', () => {
-      menu?.classList.add('hidden');
-    });
+  // También escuchar cambios de URL (popstate para back/forward)
+  window.addEventListener('popstate', () => {
+    updateActiveNav();
   });
 </script>
