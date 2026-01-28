@@ -53,8 +53,7 @@ services:
     command: tunnel run
     environment:
       - TUNNEL_TOKEN=${TUNNEL_TOKEN}
-    profiles:
-      - tunnel
+
     volumes: 
       - ./tunnel/config.yml:/etc/cloudflared/config.yml:ro
     depends_on:
