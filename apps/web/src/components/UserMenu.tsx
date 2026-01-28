@@ -80,14 +80,25 @@ export function UserMenu() {
     }
   };
 
+  // Ancho fijo para evitar layout shift
+  const containerClass = "w-40 flex items-center justify-end relative";
+
   if (loading) {
-    return <div className="w-10 h-10 rounded-full bg-dark-700 animate-pulse" />;
+    return (
+      <div className={containerClass}>
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-dark-700 animate-pulse" />
+          <div className="hidden sm:block w-16 h-4 bg-dark-700 rounded animate-pulse" />
+          <div className="w-4 h-4 bg-dark-700 rounded animate-pulse" />
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
     return (
-      <div className="flex items-center gap-3">
-        <Button asChild>
+      <div className={containerClass}>
+        <Button asChild size="sm">
           <a href="/login">Iniciar Sesión</a>
         </Button>
       </div>
@@ -103,15 +114,15 @@ export function UserMenu() {
     .slice(0, 2);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className={containerClass} ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 p-1 rounded-full hover:bg-dark-700/50 transition-colors"
+        className="flex items-center gap-2 p-1 rounded-full hover:bg-dark-700/50 transition-colors"
       >
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-accent-pink flex items-center justify-center text-sm font-bold text-white">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-accent-pink flex items-center justify-center text-xs font-bold text-white shrink-0">
           {initials}
         </div>
-        <span className="hidden sm:block text-dark-200 font-medium max-w-[120px] truncate">{displayName}</span>
+        <span className="hidden sm:block text-dark-200 font-medium text-sm w-16 truncate">{displayName}</span>
         <svg
           className={`w-4 h-4 text-dark-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
           fill="none"
