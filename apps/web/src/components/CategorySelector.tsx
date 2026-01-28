@@ -99,7 +99,7 @@ export function CategorySelector({ categories, selected, onSelect, multiple = fa
       {isOpen && (
         <div
           className={cn(
-            "absolute left-0 mt-2 w-full py-2 rounded-xl z-50 max-h-80 overflow-y-auto",
+            "absolute left-0 mt-2 w-full py-2 rounded-xl z-[100] max-h-80 overflow-y-auto",
             "bg-dark-800/95 backdrop-blur-xl border border-dark-700 shadow-2xl",
             "animate-fade-in",
           )}

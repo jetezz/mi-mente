@@ -366,7 +366,7 @@ export function JobEditor({ jobId }: JobEditorProps) {
       </div>
 
       {/* Categorías en línea - entre título y editor */}
-      <div className="card p-5 border-dark-800 bg-dark-900/30">
+      <div className="card p-5 border-dark-800 bg-dark-900/30 overflow-visible relative z-50">
         <div className="flex flex-col md:flex-row md:items-center gap-4">
           <label className="text-xs font-black uppercase tracking-widest text-purple-400 whitespace-nowrap flex items-center gap-2">
             📁 Categorías
